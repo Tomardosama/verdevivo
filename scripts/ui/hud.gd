@@ -3,14 +3,16 @@ class_name TRushHUD
 
 signal upgrade_requested(upgrade_id: String)
 signal prestige_requested
+signal bestiary_toggled
 
 var money_label: Label
 var bag_label: Label
 var progress_label: Label
 var phase_label: Label
 var message_label: Label
-var upgrade_box: VBoxContainer
 var upgrade_buttons: Array[Button] = []
+var bestiary_panel: PanelContainer
+var bestiary_list: VBoxContainer
 
 func _ready() -> void:
 	var panel := PanelContainer.new()
@@ -33,9 +35,9 @@ func _ready() -> void:
 
 	var right_panel := PanelContainer.new()
 	right_panel.position = Vector2(18, 190)
-	right_panel.custom_minimum_size = Vector2(340, 245)
+	right_panel.custom_minimum_size = Vector2(340, 290)
 	add_child(right_panel)
-	upgrade_box = VBoxContainer.new()
+	var upgrade_box := VBoxContainer.new()
 	right_panel.add_child(upgrade_box)
 	upgrade_box.add_child(_make_label("MEJORAS (fase nocturna)", 17))
 	var upgrade_data := [
@@ -55,6 +57,22 @@ func _ready() -> void:
 	prestige_button.text = "RESTAURAR BIOMA · PRESTIGIO"
 	prestige_button.pressed.connect(func(): prestige_requested.emit())
 	upgrade_box.add_child(prestige_button)
+
+	var bestiary_button := Button.new()
+	bestiary_button.text = "ABRIR BESTIARIO"
+	bestiary_button.position = Vector2(18, 500)
+	bestiary_button.pressed.connect(func(): bestiary_toggled.emit())
+	add_child(bestiary_button)
+
+	bestiary_panel = PanelContainer.new()
+	bestiary_panel.position = Vector2(380, 190)
+	bestiary_panel.custom_minimum_size = Vector2(360, 260)
+	bestiary_panel.visible = false
+	add_child(bestiary_panel)
+	bestiary_list = VBoxContainer.new()
+	bestiary_panel.add_child(bestiary_list)
+	bestiary_list.add_child(_make_label("BESTIARIO DEL BOSQUE", 20))
+
 	message_label = _make_label("", 22)
 	message_label.position = Vector2(380, 24)
 	message_label.add_theme_color_override("font_color", Color(0.9, 1.0, 0.82))
@@ -84,6 +102,17 @@ func update_phase(is_day: bool, seconds_left: int) -> void:
 func set_upgrade_access(enabled: bool) -> void:
 	for button in upgrade_buttons:
 		button.disabled = not enabled
+
+func set_bestiary(entries: Array[Dictionary]) -> void:
+	for index in range(1, bestiary_list.get_child_count()):
+		bestiary_list.get_child(index).queue_free()
+	for entry in entries:
+		var label := _make_label("✓ %s — %s" % [entry.get("name", "Especie"), entry.get("description", "")], 14)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		bestiary_list.add_child(label)
+
+func toggle_bestiary() -> void:
+	bestiary_panel.visible = not bestiary_panel.visible
 
 func show_message(message: String) -> void:
 	message_label.text = message
