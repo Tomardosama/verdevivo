@@ -3,6 +3,7 @@ class_name TRushPlayer
 
 signal inventory_changed(current: int, capacity: int)
 signal deposit_requested
+signal trash_collected(value: int)
 
 @export_group("Movement")
 @export var walk_speed: float = 5.0
@@ -16,6 +17,7 @@ signal deposit_requested
 @export var interaction_range: float = 5.0
 
 var bag_count: int = 0
+var collection_enabled: bool = true
 var camera_pivot: Node3D
 var game_camera: Camera3D
 
@@ -53,7 +55,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
 				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-			else:
+			elif collection_enabled:
 				_try_collect()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -103,6 +105,7 @@ func _try_collect() -> void:
 	bag_count += value
 	target.queue_free()
 	inventory_changed.emit(bag_count, bag_capacity)
+	trash_collected.emit(value)
 
 func _request_deposit() -> void:
 	for station in get_tree().get_nodes_in_group("recycling_station"):
@@ -116,3 +119,7 @@ func collect_bag_contents() -> int:
 	bag_count = 0
 	inventory_changed.emit(bag_count, bag_capacity)
 	return amount
+
+func increase_capacity(amount: int) -> void:
+	bag_capacity += amount
+	inventory_changed.emit(bag_count, bag_capacity)
