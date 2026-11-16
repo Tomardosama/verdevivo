@@ -3,6 +3,7 @@ extends Node3D
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const TRASH_SCENE := preload("res://scenes/garbage/trash.tscn")
 const HUD_SCRIPT := preload("res://scripts/ui/hud.gd")
+const WILDLIFE_SCRIPT := preload("res://scripts/environment/wildlife_actor.gd")
 const SAVE_PATH := "user://trush_save.cfg"
 
 @export_group("World")
@@ -32,6 +33,7 @@ func _ready() -> void:
 	_spawn_trash()
 	_spawn_station()
 	_create_hud()
+	_restore_unlocked_wildlife()
 	_apply_upgrades()
 	_update_hud()
 
@@ -163,7 +165,9 @@ func _spawn_trash() -> void:
 		Vector3(11, 0, 1), Vector3(-1, 0, 10), Vector3(5, 0, -11), Vector3(-6, 0, 11),
 		Vector3(12, 0, -3), Vector3(-12, 0, 2), Vector3(9, 0, -10), Vector3(-9, 0, -11)
 	]
-	for i in range(mini(starting_trash_count, positions.size())):
+	var target_count := mini(starting_trash_count, positions.size())
+	var first_remaining := clampi(collected_trash, 0, target_count)
+	for i in range(first_remaining, target_count):
 		var trash := TRASH_SCENE.instantiate() as TrashPickup
 		trash.position = positions[i]
 		var material := StandardMaterial3D.new()
@@ -173,7 +177,7 @@ func _spawn_trash() -> void:
 		if visual:
 			visual.material_override = material
 		add_child(trash)
-	total_trash = mini(starting_trash_count, positions.size())
+	total_trash = target_count
 
 func _spawn_station() -> void:
 	var station := Node3D.new()
@@ -204,7 +208,9 @@ func _create_hud() -> void:
 	add_child(hud)
 	hud.upgrade_requested.connect(_buy_upgrade)
 	hud.prestige_requested.connect(_perform_prestige)
+	hud.bestiary_toggled.connect(hud.toggle_bestiary)
 	hud.set_upgrade_access(not is_day)
+	_refresh_bestiary()
 
 func _on_inventory_changed(current: int, capacity: int) -> void:
 	if hud:
@@ -231,25 +237,46 @@ func _check_restoration() -> void:
 	var percent := _restoration_percent()
 	hud.update_progress(percent)
 	var milestones := [
-		{"percent": 25, "name": "Aves del bosque", "message": "¡La limpieza permite el regreso de las aves!"},
-		{"percent": 60, "name": "Pequeños mamíferos", "message": "¡Vuelven los pequeños mamíferos al bioma!"},
-		{"percent": 100, "name": "Bosque restaurado", "message": "¡Bioma restaurado al 100%! Has desbloqueado el prestigio."}
+		{"percent": 25, "name": "Hornero", "id": "bird", "description": "Ave nativa que construye nidos de barro y ayuda a mantener el equilibrio del ecosistema.", "message": "¡Regresó el hornero al bosque!"},
+		{"percent": 60, "name": "Zorro gris", "id": "fox", "description": "Mamífero omnívoro que dispersa semillas y contribuye al control de pequeños animales.", "message": "¡Se observó un zorro gris en el bioma!"},
+		{"percent": 100, "name": "Venado de campo", "id": "deer", "description": "Herbívoro nativo de pastizales y ambientes abiertos; su presencia indica un hábitat más saludable.", "message": "¡El venado de campo volvió al ecosistema! Bioma restaurado."}
 	]
 	for milestone in milestones:
 		var species_name: String = milestone["name"]
 		if percent >= int(milestone["percent"]) and not species_unlocked.has(species_name):
 			species_unlocked.append(species_name)
 			hud.show_message(milestone["message"])
-			_spawn_species_marker(species_name)
+			_spawn_species_marker(milestone)
+			_refresh_bestiary()
 			_save_game()
 
-func _spawn_species_marker(species_name: String) -> void:
-	var marker := Label3D.new()
-	marker.text = "✦ " + species_name
-	marker.position = Vector3(randf_range(-7.0, 7.0), 2.4, randf_range(-7.0, 7.0))
-	marker.font_size = 36
-	marker.modulate = Color(0.85, 1.0, 0.75)
-	add_child(marker)
+func _spawn_species_marker(species: Dictionary) -> void:
+	var actor := WILDLIFE_SCRIPT.new() as TRushWildlife
+	actor.species_id = str(species["id"])
+	actor.position = Vector3(randf_range(-7.0, 7.0), 0.0, randf_range(-7.0, 7.0))
+	actor.name = "Wildlife_" + str(species["id"])
+	add_child(actor)
+
+func _restore_unlocked_wildlife() -> void:
+	for species in _species_catalog():
+		if species_unlocked.has(str(species["name"])):
+			_spawn_species_marker(species)
+
+func _refresh_bestiary() -> void:
+	if hud == null:
+		return
+	var unlocked: Array[Dictionary] = []
+	for species in _species_catalog():
+		if species_unlocked.has(str(species["name"])):
+			unlocked.append(species)
+	hud.set_bestiary(unlocked)
+
+func _species_catalog() -> Array[Dictionary]:
+	return [
+		{"name": "Hornero", "id": "bird", "description": "Ave nativa que construye nidos de barro y ayuda a mantener el equilibrio del ecosistema."},
+		{"name": "Zorro gris", "id": "fox", "description": "Mamífero omnívoro que dispersa semillas y contribuye al control de pequeños animales."},
+		{"name": "Venado de campo", "id": "deer", "description": "Herbívoro nativo de pastizales y ambientes abiertos; su presencia indica un hábitat más saludable."}
+	]
 
 func _upgrade_cost(upgrade_id: String) -> int:
 	var level := int(upgrades[upgrade_id])
