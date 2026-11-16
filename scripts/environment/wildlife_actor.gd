@@ -17,7 +17,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	wander_timer -= delta
-	if wander_timer <= 0.0 or global_position.distance_to(parent_global_target()) < 0.35:
+	if wander_timer <= 0.0:
 		_choose_target()
 	var direction := target - global_position
 	direction.y = 0.0
@@ -25,8 +25,6 @@ func _process(delta: float) -> void:
 		global_position += direction.normalized() * move_speed * delta
 		look_at(Vector3(target.x, global_position.y, target.z), Vector3.UP)
 
-func parent_global_target() -> Vector3:
-	return global_position
 
 func _choose_target() -> void:
 	wander_timer = randf_range(2.0, 5.0)
