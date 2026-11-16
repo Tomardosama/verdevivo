@@ -1,0 +1,28 @@
+{
+  "species": [
+    {
+      "id": "bird",
+      "name": "Hornero",
+      "scientific_name": "Furnarius rufus",
+      "habitat": "Bosques abiertos, parques y áreas rurales de Sudamérica.",
+      "ecological_role": "Consume pequeños invertebrados y construye nidos de barro.",
+      "unlock_percent": 25
+    },
+    {
+      "id": "fox",
+      "name": "Zorro gris",
+      "scientific_name": "Lycalopex gymnocercus",
+      "habitat": "Pastizales, matorrales y ambientes abiertos.",
+      "ecological_role": "Omnívoro que participa en redes tróficas y dispersión de semillas.",
+      "unlock_percent": 60
+    },
+    {
+      "id": "deer",
+      "name": "Venado de campo",
+      "scientific_name": "Ozotoceros bezoarticus",
+      "habitat": "Pastizales naturales y sabanas abiertas.",
+      "ecological_role": "Herbívoro nativo cuya presencia depende de hábitats bien conservados.",
+      "unlock_percent": 100
+    }
+  ]
+}
