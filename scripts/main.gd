@@ -278,7 +278,11 @@ func _apply_upgrades() -> void:
 		return
 	player.walk_speed = 5.0 + float(upgrades["speed"]) * 0.7
 	player.sprint_speed = 8.0 + float(upgrades["speed"]) * 0.9
-	player.increase_capacity(2 * int(upgrades["capacity"]) - (player.bag_capacity - 5)) if int(upgrades["capacity"]) > 0 else null
+	if int(upgrades["capacity"]) > 0:
+		var target_capacity := 5 + 2 * int(upgrades["capacity"])
+		var capacity_increase := target_capacity - player.bag_capacity
+		if capacity_increase > 0:
+			player.increase_capacity(capacity_increase)
 	player.interaction_range = 5.0 + float(upgrades["range"]) * 1.0
 
 func _perform_prestige() -> void:
