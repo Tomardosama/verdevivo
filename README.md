@@ -10,7 +10,8 @@
 - HUD with money, bag capacity, restoration percentage and day/night clock.
 - Day and night phases: waste collection during the day, upgrades during the night.
 - Five upgrade tracks: movement speed, bag capacity, recycling value, collection range and day duration.
-- Forest restoration milestones with returning wildlife notifications.
+- Forest restoration milestones with visible wandering wildlife: hornero, zorro gris and venado de campo.
+- Interactive bestiary with educational species descriptions and persistent unlocks.
 - Prestige reset with persistent upgrades and a prestige reward.
 - Local save data in Godot's `user://trush_save.cfg`.
 
@@ -27,7 +28,7 @@
 
 Import `project.godot` using Godot 4.7 and press F5.
 
-See [docs/GODOT_GITHUB_WORKFLOW.md](docs/GODOT_GITHUB_WORKFLOW.md) for the GitHub Desktop workflow and local validation steps.
+See [docs/GODOT_GITHUB_WORKFLOW.md](docs/GODOT_GITHUB_WORKFLOW.md) for the GitHub Desktop workflow and [docs/AUTOMATED_VALIDATION.md](docs/AUTOMATED_VALIDATION.md) for CI validation.
 
 ## Validation status
 
