@@ -27,6 +27,7 @@ var vacuum_unlocked: bool = false
 var vacuum_radius: float = 3.2
 var vacuum_nozzle: MeshInstance3D
 var vacuum_active: bool = false
+var suppress_deposit_input: bool = false
 
 func _ready() -> void:
 	camera_pivot = get_node_or_null("CameraPivot")
@@ -60,6 +61,7 @@ func _create_input_actions() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
 		if _try_open_shop():
+			suppress_deposit_input = true
 			return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB:
 		skill_requested.emit()
@@ -97,8 +99,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0.0
 	move_and_slide()
-	if Input.is_action_just_pressed("deposit"):
+	if Input.is_action_just_pressed("deposit") and not suppress_deposit_input:
 		_request_deposit()
+	suppress_deposit_input = false
 	if vacuum_unlocked and Input.is_action_pressed("vacuum"):
 		_vacuum_collect()
 
