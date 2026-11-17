@@ -104,9 +104,9 @@ func _build_fox() -> void:
 	_part(self, tail, Vector3(0.0, 0.58, 0.85), orange, Vector3(0.7, 0.7, 1.8))
 
 func _build_deer() -> void:
-	var tan := Color(0.55, 0.36, 0.20)
+	var coat_tan := Color(0.55, 0.36, 0.20)
 	var dark := Color(0.25, 0.16, 0.1)
-	_part(self, SphereMesh.new(), Vector3(0, 1.0, 0), tan, Vector3(0.42, 0.48, 0.78))
+	_part(self, SphereMesh.new(), Vector3(0, 1.0, 0), coat_tan, Vector3(0.42, 0.48, 0.78))
 	var cream := Color(0.86, 0.79, 0.66)
 	_part(self, SphereMesh.new(), Vector3(0, 0.88, 0.12), cream, Vector3(0.28, 0.28, 0.58))
 	_part(self, SphereMesh.new(), Vector3(0, 1.22, -0.84), cream, Vector3(0.14, 0.12, 0.18))
