@@ -369,18 +369,23 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 	var rock_material := StandardMaterial3D.new()
 	rock_material.albedo_color = Color(0.34, 0.36, 0.32)
 	rock_material.roughness = 1.0
+	# Distribuir el pasto en parches reconocibles, no como puntos aislados uniformes.
+	var grass_patch_centers: Array[Vector3] = []
+	for patch_index in range(27):
+		grass_patch_centers.append(Vector3(rng.randf_range(-52, 52), 0.0, rng.randf_range(-52, 52)))
 	for i in range(324):
 		var tuft := Node3D.new()
-		var grass_center := Vector3(rng.randf_range(-52, 52), 0.0, rng.randf_range(-52, 52))
-		tuft.position = grass_center + Vector3(rng.randf_range(-1.6, 1.6), 0.0, rng.randf_range(-1.6, 1.6))
-		var blade_count := rng.randi_range(3, 5)
+		var patch_center := grass_patch_centers[i % grass_patch_centers.size()]
+		tuft.position = patch_center + Vector3(rng.randf_range(-3.2, 3.2), 0.0, rng.randf_range(-3.2, 3.2))
+		var blade_count := rng.randi_range(4, 7)
 		for blade in range(blade_count):
 			var mesh_node := MeshInstance3D.new()
-			var blade_mesh := BoxMesh.new()
-			blade_mesh.size = Vector3(0.035, rng.randf_range(0.18, 0.42), 0.045)
+			var blade_height := rng.randf_range(0.22, 0.48)
+			var blade_mesh := PrismMesh.new()
+			blade_mesh.size = Vector3(0.065, blade_height, 0.045)
 			mesh_node.mesh = blade_mesh
-			mesh_node.position = Vector3(rng.randf_range(-0.12, 0.12), blade_mesh.size.y * 0.5, rng.randf_range(-0.12, 0.12))
-			mesh_node.rotation.z = rng.randf_range(-0.35, 0.35)
+			mesh_node.position = Vector3(rng.randf_range(-0.15, 0.15), blade_height * 0.5, rng.randf_range(-0.15, 0.15))
+			mesh_node.rotation = Vector3(rng.randf_range(-0.12, 0.12), rng.randf_range(0.0, TAU), rng.randf_range(-0.42, 0.42))
 			mesh_node.material_override = grass_materials[rng.randi_range(0, grass_materials.size() - 1)]
 			tuft.add_child(mesh_node)
 		parent.add_child(tuft)
