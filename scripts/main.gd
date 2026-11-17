@@ -7,7 +7,7 @@ const WILDLIFE_SCRIPT := preload("res://scripts/environment/wildlife_actor.gd")
 const SAVE_PATH := "user://trush_save.cfg"
 
 @export_group("World")
-@export var starting_trash_count: int = 24
+@export var starting_trash_count: int = 48
 @export var day_duration: float = 210.0
 @export var night_duration: float = 90.0
 @export var value_per_trash: int = 5
@@ -25,8 +25,12 @@ var prestige_count: int = 0
 var upgrades := {"speed": 0, "capacity": 0, "value": 0, "range": 0, "day": 0}
 var species_unlocked: Array[String] = []
 var notification_cooldown: float = 0.0
+var station: Node3D
+var session_start_time: float = 0.0
+var unlocked_zones: Array[String] = []
 
 func _ready() -> void:
+	session_start_time = Time.get_ticks_msec() / 1000.0
 	_build_world()
 	_load_game()
 	_spawn_player()
@@ -46,8 +50,10 @@ func _process(delta: float) -> void:
 		is_day = not is_day
 		_on_phase_changed()
 	_update_sun()
+	_check_zone_unlocks()
 	if hud:
 		hud.update_phase(is_day, int(ceil(duration - day_time)))
+		hud.update_stats(money, collected_trash, prestige_count, int(Time.get_ticks_msec() / 1000.0 - session_start_time))
 
 func _current_phase_duration() -> float:
 	return day_duration + float(upgrades["day"]) * 30.0 if is_day else night_duration
@@ -81,7 +87,7 @@ func _build_world() -> void:
 	add_child(ground)
 	var ground_mesh := MeshInstance3D.new()
 	var plane := BoxMesh.new()
-	plane.size = Vector3(60, 1, 60)
+	plane.size = Vector3(120, 1, 120)
 	ground_mesh.mesh = plane
 	var ground_material := StandardMaterial3D.new()
 	ground_material.albedo_color = Color(0.20, 0.32, 0.19)
@@ -89,7 +95,7 @@ func _build_world() -> void:
 	ground.add_child(ground_mesh)
 	var ground_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(60, 1, 60)
+	box.size = Vector3(120, 1, 120)
 	ground_shape.shape = box
 	ground.add_child(ground_shape)
 
@@ -117,10 +123,14 @@ func _build_world() -> void:
 	var trees := Node3D.new()
 	trees.name = "Trees"
 	add_child(trees)
-	for i in range(28):
-		var angle := TAU * float(i) / 28.0
-		var radius := 13.0 + float(i % 4) * 2.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 74129
+	for i in range(64):
+		var angle := rng.randf_range(0.0, TAU)
+		var radius := rng.randf_range(19.0, 54.0)
 		_create_tree(trees, Vector3(cos(angle) * radius, 0, sin(angle) * radius))
+	_populate_ground_detail(rng, trees)
+	_create_zone_markers()
 
 func _create_tree(parent: Node3D, location: Vector3) -> void:
 	var tree := Node3D.new()
@@ -144,9 +154,19 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 	crown.mesh = crown_mesh
 	crown.position.y = 3.0
 	var leaves := StandardMaterial3D.new()
-	leaves.albedo_color = Color(0.12, 0.34, 0.16)
+	leaves.albedo_color = Color(0.10 + randf() * 0.08, 0.27 + randf() * 0.12, 0.12 + randf() * 0.07)
+	leaves.roughness = 1.0
 	crown.material_override = leaves
 	tree.add_child(crown)
+	var crown_second := MeshInstance3D.new()
+	var crown_mesh_second := SphereMesh.new()
+	crown_mesh_second.radius = 0.95
+	crown_mesh_second.height = 1.9
+	crown_second.mesh = crown_mesh_second
+	crown_second.position = Vector3(0.65, 3.25, 0.15)
+	crown_second.material_override = leaves
+	tree.add_child(crown_second)
+	tree.rotation.y = randf_range(0.0, TAU)
 
 func _spawn_player() -> void:
 	player = PLAYER_SCENE.instantiate() as TRushPlayer
@@ -157,30 +177,131 @@ func _spawn_player() -> void:
 	player.trash_collected.connect(_on_trash_collected)
 
 func _spawn_trash() -> void:
-	var positions := [
-		Vector3(-3, 0, 1), Vector3(2, 0, 0), Vector3(4, 0, 3), Vector3(-5, 0, 4),
-		Vector3(1, 0, -4), Vector3(-2, 0, -5), Vector3(6, 0, -3), Vector3(-7, 0, -2),
-		Vector3(8, 0, 5), Vector3(0, 0, -8), Vector3(-9, 0, 7), Vector3(10, 0, -7),
-		Vector3(3, 0, 8), Vector3(-4, 0, -9), Vector3(7, 0, 9), Vector3(-10, 0, -6),
-		Vector3(11, 0, 1), Vector3(-1, 0, 10), Vector3(5, 0, -11), Vector3(-6, 0, 11),
-		Vector3(12, 0, -3), Vector3(-12, 0, 2), Vector3(9, 0, -10), Vector3(-9, 0, -11)
-	]
-	var target_count := mini(starting_trash_count, positions.size())
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90317 + prestige_count
+	var target_count := maxi(starting_trash_count, 48)
 	var first_remaining := clampi(collected_trash, 0, target_count)
+	var type_names := ["Botella plastica", "Lata de aluminio", "Papel y carton", "Envase de vidrio"]
+	var rewards := [5, 8, 6, 12]
+	var colors := [Color(0.20, 0.55, 0.72), Color(0.72, 0.76, 0.78), Color(0.72, 0.57, 0.32), Color(0.25, 0.62, 0.48)]
 	for i in range(first_remaining, target_count):
 		var trash := TRASH_SCENE.instantiate() as TrashPickup
-		trash.position = positions[i]
-		var material := StandardMaterial3D.new()
-		var colors := [Color(0.75, 0.78, 0.72), Color(0.75, 0.48, 0.18), Color(0.22, 0.48, 0.72)]
-		material.albedo_color = colors[i % colors.size()]
+		var location := Vector3.ZERO
+		for attempt in range(20):
+			location = Vector3(rng.randf_range(-49.0, 49.0), 0.0, rng.randf_range(-49.0, 49.0))
+			if location.length() > 7.0:
+				break
+		trash.position = location
+		var kind := i % type_names.size()
+		trash.trash_type = type_names[kind]
+		trash.reward_value = rewards[kind]
+		trash.trash_value = 1
 		var visual := trash.get_node_or_null("MeshInstance3D") as MeshInstance3D
 		if visual:
+			var material := StandardMaterial3D.new()
+			material.albedo_color = colors[kind]
+			material.metallic = 0.48 if kind == 1 else 0.08
+			material.roughness = 0.38 if kind == 3 else 0.72
 			visual.material_override = material
+			match kind:
+				0:
+					var bottle := CylinderMesh.new()
+					bottle.top_radius = 0.09
+					bottle.bottom_radius = 0.15
+					bottle.height = 0.52
+					visual.mesh = bottle
+				1:
+					var can := CylinderMesh.new()
+					can.top_radius = 0.14
+					can.bottom_radius = 0.14
+					can.height = 0.34
+					visual.mesh = can
+				2:
+					var paper := BoxMesh.new()
+					paper.size = Vector3(0.34, 0.035, 0.27)
+					visual.mesh = paper
+					visual.position.y = 0.05
+				3:
+					var glass := SphereMesh.new()
+					glass.radius = 0.19
+					glass.height = 0.38
+					visual.mesh = glass
 		add_child(trash)
 	total_trash = target_count
 
+func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void:
+	var grass_materials: Array[StandardMaterial3D] = []
+	for color in [Color(0.24, 0.39, 0.18), Color(0.34, 0.43, 0.20), Color(0.43, 0.42, 0.22)]:
+		var material := StandardMaterial3D.new()
+		material.albedo_color = color
+		material.roughness = 1.0
+		grass_materials.append(material)
+	var rock_material := StandardMaterial3D.new()
+	rock_material.albedo_color = Color(0.34, 0.36, 0.32)
+	rock_material.roughness = 1.0
+	for i in range(360):
+		var tuft := Node3D.new()
+		tuft.position = Vector3(rng.randf_range(-57, 57), 0.0, rng.randf_range(-57, 57))
+		var blade_count := rng.randi_range(3, 5)
+		for blade in range(blade_count):
+			var mesh_node := MeshInstance3D.new()
+			var blade_mesh := BoxMesh.new()
+			blade_mesh.size = Vector3(0.035, rng.randf_range(0.18, 0.42), 0.045)
+			mesh_node.mesh = blade_mesh
+			mesh_node.position = Vector3(rng.randf_range(-0.12, 0.12), blade_mesh.size.y * 0.5, rng.randf_range(-0.12, 0.12))
+			mesh_node.rotation.z = rng.randf_range(-0.35, 0.35)
+			mesh_node.material_override = grass_materials[rng.randi_range(0, grass_materials.size() - 1)]
+			tuft.add_child(mesh_node)
+		parent.add_child(tuft)
+	for i in range(95):
+		var rock := MeshInstance3D.new()
+		var rock_mesh := SphereMesh.new()
+		rock_mesh.radius = rng.randf_range(0.22, 0.72)
+		rock_mesh.height = rock_mesh.radius * rng.randf_range(0.75, 1.35)
+		rock.mesh = rock_mesh
+		rock.position = Vector3(rng.randf_range(-56, 56), rock_mesh.radius * 0.34, rng.randf_range(-56, 56))
+		rock.scale = Vector3(rng.randf_range(0.8, 1.6), rng.randf_range(0.55, 0.9), rng.randf_range(0.8, 1.5))
+		rock.rotation = Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(0, TAU), rng.randf_range(-0.2, 0.2))
+		rock.material_override = rock_material
+		parent.add_child(rock)
+
+func _create_zone_markers() -> void:
+	var zones := [
+		{"name": "CLARO DEL BOSQUE", "position": Vector3(0, 0, -29), "color": Color(0.45, 0.75, 0.48)},
+		{"name": "ARROYO · 35% DE RESTAURACION", "position": Vector3(0, 0, -48), "color": Color(0.35, 0.68, 0.82)},
+		{"name": "BORDE SALVAJE · 70% DE RESTAURACION", "position": Vector3(43, 0, 0), "color": Color(0.78, 0.68, 0.36)}
+	]
+	for zone in zones:
+		var sign_root := Node3D.new()
+		sign_root.position = zone["position"]
+		add_child(sign_root)
+		var post := MeshInstance3D.new()
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = Vector3(0.16, 1.8, 0.16)
+		post.mesh = post_mesh
+		post.position.y = 0.9
+		sign_root.add_child(post)
+		var label := Label3D.new()
+		label.text = zone["name"]
+		label.position.y = 2.0
+		label.font_size = 32
+		label.modulate = zone["color"]
+		sign_root.add_child(label)
+
+func _check_zone_unlocks() -> void:
+	var percent := _restoration_percent()
+	var milestones := [{"percent": 35, "id": "arroyo", "name": "Arroyo"}, {"percent": 70, "id": "borde", "name": "Borde salvaje"}]
+	for milestone in milestones:
+		var zone_id: String = milestone["id"]
+		if percent >= int(milestone["percent"]) and not unlocked_zones.has(zone_id):
+			unlocked_zones.append(zone_id)
+			if hud:
+				hud.show_message("Nueva zona desbloqueada: " + str(milestone["name"]))
+				hud.update_mission("Explora la nueva zona: " + str(milestone["name"]))
+			_save_game()
+
 func _spawn_station() -> void:
-	var station := Node3D.new()
+	station = Node3D.new()
 	station.name = "RecyclingStation"
 	station.position = Vector3(0, 0, 0)
 	station.add_to_group("recycling_station")
@@ -196,6 +317,25 @@ func _spawn_station() -> void:
 	material.albedo_color = Color(0.12, 0.48, 0.35)
 	base.material_override = material
 	station.add_child(base)
+	var bin_colors := [Color(0.15, 0.55, 0.78), Color(0.78, 0.68, 0.18), Color(0.18, 0.62, 0.38)]
+	for i in range(3):
+		var bin := MeshInstance3D.new()
+		var bin_mesh := BoxMesh.new()
+		bin_mesh.size = Vector3(0.48, 0.78, 0.48)
+		bin.mesh = bin_mesh
+		bin.position = Vector3(-0.68 + float(i) * 0.68, 0.82, 0.0)
+		var bin_material := StandardMaterial3D.new()
+		bin_material.albedo_color = bin_colors[i]
+		bin.material_override = bin_material
+		station.add_child(bin)
+	var ring := MeshInstance3D.new()
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = 1.18
+	ring_mesh.outer_radius = 1.28
+	ring.mesh = ring_mesh
+	ring.position.y = 0.82
+	ring.material_override = material
+	station.add_child(ring)
 	var sign := Label3D.new()
 	sign.text = "RECICLAJE\n[E]"
 	sign.position.y = 1.6
@@ -210,6 +350,7 @@ func _create_hud() -> void:
 	hud.prestige_requested.connect(_perform_prestige)
 	hud.bestiary_toggled.connect(hud.toggle_bestiary)
 	hud.set_upgrade_access(not is_day)
+	hud.update_mission("Recolecta residuos y llévalos a reciclar")
 	_refresh_bestiary()
 
 func _on_inventory_changed(current: int, capacity: int) -> void:
@@ -222,10 +363,15 @@ func _on_trash_collected(_value: int) -> void:
 
 func _on_deposit_requested() -> void:
 	var amount := player.collect_bag_contents()
-	var earned := amount * value_per_trash * (1 + int(upgrades["value"]))
+	var earned := amount * (1 + int(upgrades["value"]))
 	money += earned
 	hud.update_money(money)
-	hud.show_message("Reciclaste %d residuos · +$%d" % [amount, earned])
+	hud.update_mission("Sigue explorando y recupera el ecosistema")
+	if station:
+		var pulse := create_tween()
+		pulse.tween_property(station, "scale", Vector3.ONE * 1.12, 0.12)
+		pulse.tween_property(station, "scale", Vector3.ONE, 0.2)
+	hud.show_message("¡Reciclaje completado! +$%d" % earned)
 	_save_game()
 
 func _restoration_percent() -> int:
@@ -248,6 +394,8 @@ func _check_restoration() -> void:
 			hud.show_message(milestone["message"])
 			_spawn_species_marker(milestone)
 			_refresh_bestiary()
+			if hud:
+				hud.update_mission("Sigue limpiando para recuperar el ecosistema")
 			_save_game()
 
 func _spawn_species_marker(species: Dictionary) -> void:
@@ -341,6 +489,7 @@ func _save_game() -> void:
 	config.set_value("progress", "prestige", prestige_count)
 	config.set_value("progress", "collected_trash", collected_trash)
 	config.set_value("progress", "species_unlocked", species_unlocked)
+	config.set_value("progress", "unlocked_zones", unlocked_zones)
 	config.set_value("upgrades", "levels", upgrades)
 	config.save(SAVE_PATH)
 
@@ -352,6 +501,7 @@ func _load_game() -> void:
 	prestige_count = int(config.get_value("progress", "prestige", 0))
 	collected_trash = int(config.get_value("progress", "collected_trash", 0))
 	species_unlocked = config.get_value("progress", "species_unlocked", [])
+	unlocked_zones = config.get_value("progress", "unlocked_zones", [])
 	var saved_upgrades: Dictionary = config.get_value("upgrades", "levels", upgrades)
 	for key in upgrades:
 		upgrades[key] = int(saved_upgrades.get(key, 0))

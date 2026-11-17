@@ -6,11 +6,14 @@
 
 - First-person movement, mouse look and sprint.
 - Click-to-collect waste with a limited bag.
-- Recycling station, deposits and money rewards.
-- HUD with money, bag capacity, restoration percentage and day/night clock.
+- Expanded 120 × 120 forest environment with randomized trees, ground vegetation and rocks.
+- Four collectible waste categories with different recycling rewards.
+- Upgraded recycling station with animated deposit feedback.
+- Rounded HUD panels, timed notifications, mission prompts, pause menu and session statistics.
 - Day and night phases: waste collection during the day, upgrades during the night.
 - Five upgrade tracks: movement speed, bag capacity, recycling value, collection range and day duration.
-- Forest restoration milestones with visible wandering wildlife: hornero, zorro gris and venado de campo.
+- Forest restoration milestones with more detailed wandering wildlife: hornero, zorro gris and venado de campo.
+- Progressive zone discovery milestones and four restoration achievements.
 - Interactive bestiary with educational species descriptions and persistent unlocks.
 - Prestige reset with persistent upgrades and a prestige reward.
 - Local save data in Godot's `user://trush_save.cfg`.
