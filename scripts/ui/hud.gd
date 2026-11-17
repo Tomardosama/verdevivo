@@ -15,6 +15,7 @@ var mission_label: Label
 var stats_label: Label
 var upgrade_buttons: Array[Button] = []
 var upgrade_ids: Array[String] = []
+var upgrade_descriptions := {"speed": "Movimiento más rápido", "capacity": "+2 espacios de bolsa", "value": "Más ingresos por residuo", "range": "Mayor alcance manual", "day": "Más duración del día", "vacuum": "Radio y velocidad de succión", "discount": "Reduce otros costos"}
 var bestiary_panel: PanelContainer
 var bestiary_list: VBoxContainer
 var stats_panel: PanelContainer
@@ -49,6 +50,9 @@ func _ready() -> void:
 	var upgrades_panel := _make_panel(Vector2(22, 225), Vector2(370, 330))
 	root.add_child(upgrades_panel)
 	upgrades_panel.visible = false
+	upgrades_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	upgrades_panel.position = Vector2(-245, -250)
+	upgrades_panel.custom_minimum_size = Vector2(490, 500)
 	shop_panel = upgrades_panel
 	var upgrade_box := VBoxContainer.new()
 	upgrade_box.add_theme_constant_override("separation", 6)
@@ -61,7 +65,7 @@ func _ready() -> void:
 		["value", "Reciclaje", "Más ingresos por residuo"],
 		["range", "Alcance", "Recogida a más distancia"],
 		["day", "Turno", "Más tiempo de trabajo"],
-		["vacuum", "Aspiradora", "Recolecta en radio · Mantén F"],
+		["vacuum", "Aspiradora", "Radio y velocidad de succión · F"],
 		["discount", "Ahorro", "Reduce progresivamente otros costos"]
 	]
 	for item in upgrade_data:
@@ -70,6 +74,9 @@ func _ready() -> void:
 		upgrade_box.add_child(button)
 		upgrade_buttons.append(button)
 		upgrade_ids.append(str(item[0]))
+	var shop_close_button := _make_button("CERRAR TIENDA · ESC")
+	shop_close_button.pressed.connect(func(): show_shop(false))
+	upgrade_box.add_child(shop_close_button)
 	var prestige_button := _make_button("✧  RESTAURAR BIOMA · PRESTIGIO")
 	prestige_button.pressed.connect(func(): prestige_requested.emit())
 	upgrade_box.add_child(prestige_button)
@@ -263,7 +270,10 @@ func update_upgrade_prices(costs: Dictionary, levels: Dictionary) -> void:
 		var current_level := int(levels.get(upgrade_id, 0))
 		var display_name := upgrade_id.capitalize()
 		upgrade_buttons[index].text = "%s  ·  Nivel %d  ·  $%d" % [display_name, current_level, price]
-		upgrade_buttons[index].tooltip_text = "Comprar %s por $%d. Nivel actual: %d." % [display_name, price, current_level]
+		var detail := str(upgrade_descriptions.get(upgrade_id, "Mejora permanente"))
+		if upgrade_id == "vacuum":
+			detail = "Radio %.1f m · Succión %.2f s" % [3.2 + maxf(0.0, float(current_level - 1)) * 0.85, maxf(0.08, 0.24 - maxf(0.0, float(current_level - 1)) * 0.025)]
+		upgrade_buttons[index].tooltip_text = "%s. %s. Precio: $%d." % [display_name, detail, price]
 
 func update_skill_status(level: int, points: int, levels: Dictionary) -> void:
 	if skill_status_label:
@@ -271,6 +281,8 @@ func update_skill_status(level: int, points: int, levels: Dictionary) -> void:
 
 func toggle_skills() -> void:
 	skill_panel.visible = not skill_panel.visible
+	if skill_panel.visible:
+		close_shop()
 	stats_panel.visible = false
 	bestiary_panel.visible = false
 	menu_panel.visible = false
@@ -285,6 +297,11 @@ func _toggle_skills() -> void:
 func show_shop(is_open: bool) -> void:
 	shop_open = is_open
 	shop_panel.visible = is_open
+	if is_open:
+		bestiary_panel.visible = false
+		stats_panel.visible = false
+		menu_panel.visible = false
+		skill_panel.visible = false
 	if is_open:
 		skill_panel.visible = false
 		bestiary_panel.visible = false
@@ -306,17 +323,32 @@ func set_bestiary(entries: Array[Dictionary]) -> void:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		bestiary_list.add_child(label)
 
+func close_shop() -> void:
+	if shop_open:
+		show_shop(false)
+
 func toggle_bestiary() -> void:
 	bestiary_panel.visible = not bestiary_panel.visible
+	if bestiary_panel.visible:
+		close_shop()
+		stats_panel.visible = false
+		menu_panel.visible = false
+		skill_panel.visible = false
 	stats_panel.visible = false
 
 func _toggle_stats() -> void:
 	stats_panel.visible = not stats_panel.visible
+	if stats_panel.visible:
+		close_shop()
+		skill_panel.visible = false
 	bestiary_panel.visible = false
 	menu_panel.visible = false
 
 func _toggle_menu() -> void:
 	menu_panel.visible = not menu_panel.visible
+	if menu_panel.visible:
+		close_shop()
+		skill_panel.visible = false
 	stats_panel.visible = false
 	bestiary_panel.visible = false
 	if menu_panel.visible:
