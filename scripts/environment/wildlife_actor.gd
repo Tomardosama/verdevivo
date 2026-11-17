@@ -13,7 +13,7 @@ var animation_clock: float = 0.0
 var base_height: float = 0.0
 
 func _ready() -> void:
-	origin = position
+	origin = global_position
 	base_height = position.y
 	_build_creature()
 	_choose_target()
@@ -35,7 +35,7 @@ func _process(delta: float) -> void:
 
 func _choose_target() -> void:
 	wander_timer = randf_range(2.0, 5.0)
-	target = global_position + Vector3(randf_range(-wander_radius, wander_radius), 0.0, randf_range(-wander_radius, wander_radius))
+	target = origin + Vector3(randf_range(-wander_radius, wander_radius), 0.0, randf_range(-wander_radius, wander_radius))
 
 func _build_creature() -> void:
 	match species_id:
