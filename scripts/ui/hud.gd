@@ -74,13 +74,16 @@ func _ready() -> void:
 	set_meta("bag_fill_label", bag_icon_label)
 	set_meta("bag_fill_bar", bag_bar)
 
-	var upgrades_panel := _make_panel(Vector2(22, 225), Vector2(370, 330))
-	root.add_child(upgrades_panel)
-	upgrades_panel.visible = false
-	upgrades_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	upgrades_panel.position = Vector2(-245, -250)
+	var shop_center := CenterContainer.new()
+	shop_center.name = "ShopCenterContainer"
+	shop_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shop_center.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(shop_center)
+	var upgrades_panel := _make_panel(Vector2.ZERO, Vector2(490, 500))
 	upgrades_panel.custom_minimum_size = Vector2(490, 500)
-	shop_panel = upgrades_panel
+	shop_center.add_child(upgrades_panel)
+	shop_center.visible = false
+	shop_panel = shop_center
 	var upgrade_box := VBoxContainer.new()
 	upgrade_box.add_theme_constant_override("separation", 6)
 	upgrades_panel.add_child(upgrade_box)
@@ -112,6 +115,7 @@ func _ready() -> void:
 	skills_button.position = Vector2(20, -112)
 	skills_button.size = Vector2(230, 42)
 	skills_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	skills_button.position = Vector2(20, -204)
 	root.add_child(skills_button)
 	shop_obscured_controls.append(skills_button)
 	var level_alert := _make_label("!", 22, Color(1.0, 0.12, 0.10))
@@ -125,8 +129,8 @@ func _ready() -> void:
 	skills_button.pressed.connect(_toggle_skills)
 
 	skill_panel = _make_panel(Vector2.ZERO, Vector2(470, 360))
-	skill_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	skill_panel.position = Vector2(20, -490)
+	skill_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	# centered popupVector2(20, -490)
 	skill_panel.visible = false
 	root.add_child(skill_panel)
 	var skill_box := VBoxContainer.new()
@@ -144,6 +148,7 @@ func _ready() -> void:
 	bestiary_button.position = Vector2(20, -62)
 	bestiary_button.size = Vector2(170, 42)
 	bestiary_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	bestiary_button.position = Vector2(20, -158)
 	root.add_child(bestiary_button)
 	shop_obscured_controls.append(bestiary_button)
 	bestiary_button.pressed.connect(func(): bestiary_toggled.emit())
@@ -152,6 +157,7 @@ func _ready() -> void:
 	stats_button.position = Vector2(198, -62)
 	stats_button.size = Vector2(150, 42)
 	stats_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	stats_button.position = Vector2(20, -112)
 	root.add_child(stats_button)
 	shop_obscured_controls.append(stats_button)
 	stats_button.pressed.connect(_toggle_stats)
@@ -160,12 +166,13 @@ func _ready() -> void:
 	menu_button.position = Vector2(356, -62)
 	menu_button.size = Vector2(120, 42)
 	menu_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	menu_button.position = Vector2(20, -66)
 	root.add_child(menu_button)
 	shop_obscured_controls.append(menu_button)
 	menu_button.pressed.connect(_toggle_menu)
 	menu_panel = _make_panel(Vector2.ZERO, Vector2(440, 300))
-	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	menu_panel.position = Vector2(20, -390)
+	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	# centered popupVector2(20, -390)
 	menu_panel.visible = false
 	root.add_child(menu_panel)
 	var menu_box := VBoxContainer.new()
@@ -181,8 +188,8 @@ func _ready() -> void:
 	menu_box.add_child(_make_label("WASD mover · Shift correr · Clic recoger · E reciclar", 13))
 
 	bestiary_panel = _make_panel(Vector2(410, 210), Vector2(430, 330))
-	bestiary_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	bestiary_panel.position = Vector2(20, -430)
+	bestiary_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	# centered popupVector2(20, -430)
 	bestiary_panel.visible = false
 	root.add_child(bestiary_panel)
 	bestiary_list = VBoxContainer.new()
@@ -191,8 +198,8 @@ func _ready() -> void:
 	bestiary_list.add_child(_make_label("BESTIARIO DEL BOSQUE", 21))
 
 	stats_panel = _make_panel(Vector2(410, 210), Vector2(430, 250))
-	stats_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	stats_panel.position = Vector2(20, -350)
+	stats_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	# centered popupVector2(20, -350)
 	stats_panel.visible = false
 	root.add_child(stats_panel)
 	var stats_box := VBoxContainer.new()
