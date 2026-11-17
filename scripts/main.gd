@@ -250,8 +250,16 @@ func _spawn_trash() -> void:
 					cap_mesh.height = 0.055
 					cap.mesh = cap_mesh
 					cap.position = Vector3(0.0, 0.29, 0.0)
-					cap.material_override = _detail_material(Color(0.88, 0.30, 0.16))
+					cap.material_override = _detail_material(Color(0.98, 0.22, 0.06))
 					trash.add_child(cap)
+					var bottle_band := MeshInstance3D.new()
+					var band_mesh := TorusMesh.new()
+					band_mesh.inner_radius = 0.105
+					band_mesh.outer_radius = 0.125
+					bottle_band.mesh = band_mesh
+					bottle_band.position.y = -0.08
+					bottle_band.material_override = _detail_material(Color(0.95, 0.82, 0.22))
+					trash.add_child(bottle_band)
 				1:
 					var can := CylinderMesh.new()
 					can.top_radius = 0.14
@@ -260,11 +268,19 @@ func _spawn_trash() -> void:
 					visual.mesh = can
 					var label := MeshInstance3D.new()
 					var label_mesh := BoxMesh.new()
-					label_mesh.size = Vector3(0.012, 0.13, 0.22)
+					label_mesh.size = Vector3(0.018, 0.20, 0.25)
 					label.mesh = label_mesh
-					label.position = Vector3(0.137, 0.0, 0.0)
-					label.material_override = _detail_material(Color(0.88, 0.78, 0.35))
+					label.position = Vector3(0.145, 0.0, 0.0)
+					label.rotation.y = 0.0
+					label.material_override = _detail_material(Color(0.98, 0.18, 0.08))
 					trash.add_child(label)
+					var can_stripe := MeshInstance3D.new()
+					var stripe_mesh := BoxMesh.new()
+					stripe_mesh.size = Vector3(0.02, 0.22, 0.045)
+					can_stripe.mesh = stripe_mesh
+					can_stripe.position = Vector3(0.151, 0.0, -0.055)
+					can_stripe.material_override = _detail_material(Color(0.08, 0.22, 0.68))
+					trash.add_child(can_stripe)
 				2:
 					var paper := BoxMesh.new()
 					paper.size = Vector3(0.34, 0.035, 0.27)
