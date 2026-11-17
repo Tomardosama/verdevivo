@@ -134,7 +134,7 @@ func _build_deer() -> void:
 	_part(self, SphereMesh.new(), Vector3(0, 1.22, -0.84), cream, Vector3(0.14, 0.12, 0.18))
 	for spot_index in range(7):
 		_part(self, SphereMesh.new(), Vector3(randf_range(-0.3, 0.3), randf_range(1.05, 1.34), randf_range(-0.25, 0.3)), cream, Vector3(0.035, 0.025, 0.035))
-	_part(self, SphereMesh.new(), Vector3(0, 1.35, -0.62), tan, Vector3(0.25, 0.32, 0.28))
+	_part(self, SphereMesh.new(), Vector3(0, 1.35, -0.62), coat_tan, Vector3(0.25, 0.32, 0.28))
 	for side in [-1.0, 1.0]:
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 0.45, -0.32), dark, Vector3(0.08, 1.0, 0.08))
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 1.7, -0.62), dark, Vector3(0.035, 0.55, 0.035))
