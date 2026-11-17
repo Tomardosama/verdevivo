@@ -92,7 +92,7 @@ func _physics_process(delta: float) -> void:
 	var speed := sprint_speed if Input.is_action_pressed("sprint") else walk_speed
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
-	if not is_on_floor():
+	if not is_on_floor() or velocity.y > 0.0:
 		velocity.y -= float(ProjectSettings.get_setting("physics/3d/default_gravity")) * delta
 	else:
 		velocity.y = 0.0
