@@ -22,12 +22,20 @@ var collected_trash: int = 0
 var day_time: float = 0.0
 var is_day: bool = true
 var prestige_count: int = 0
-var upgrades := {"speed": 0, "capacity": 0, "value": 0, "range": 0, "day": 0}
+var upgrades := {"speed": 0, "capacity": 0, "value": 0, "range": 0, "day": 0, "vacuum": 0, "discount": 0}
 var species_unlocked: Array[String] = []
 var notification_cooldown: float = 0.0
 var station: Node3D
 var session_start_time: float = 0.0
 var unlocked_zones: Array[String] = []
+var skill_points: int = 0
+var player_xp: int = 0
+var player_level: int = 1
+var skill_levels := {"agility": 0, "capacity": 0, "combo": 0, "magnet": 0}
+var combo_multiplier: float = 1.0
+var last_deposit_time: float = -100.0
+var cloud_nodes: Array[Node3D] = []
+var reserved_positions: Array[Vector3] = []
 
 func _ready() -> void:
 	session_start_time = Time.get_ticks_msec() / 1000.0
@@ -51,6 +59,7 @@ func _process(delta: float) -> void:
 		_on_phase_changed()
 	_update_sun()
 	_check_zone_unlocks()
+	_update_clouds(delta)
 	if hud:
 		hud.update_phase(is_day, int(ceil(duration - day_time)))
 		hud.update_stats(money, collected_trash, prestige_count, int(Time.get_ticks_msec() / 1000.0 - session_start_time))
@@ -131,6 +140,8 @@ func _build_world() -> void:
 		_create_tree(trees, Vector3(cos(angle) * radius, 0, sin(angle) * radius))
 	_populate_ground_detail(rng, trees)
 	_create_zone_markers()
+	_create_pond()
+	_create_clouds()
 
 func _create_tree(parent: Node3D, location: Vector3) -> void:
 	var tree := Node3D.new()
@@ -175,6 +186,7 @@ func _spawn_player() -> void:
 	player.inventory_changed.connect(_on_inventory_changed)
 	player.deposit_requested.connect(_on_deposit_requested)
 	player.trash_collected.connect(_on_trash_collected)
+	player.shop_requested.connect(_open_shop)
 
 func _spawn_trash() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -348,9 +360,12 @@ func _create_hud() -> void:
 	add_child(hud)
 	hud.upgrade_requested.connect(_buy_upgrade)
 	hud.prestige_requested.connect(_perform_prestige)
+	hud.skill_requested.connect(_spend_skill_point)
 	hud.bestiary_toggled.connect(hud.toggle_bestiary)
 	hud.set_upgrade_access(not is_day)
 	hud.update_mission("Recolecta residuos y llévalos a reciclar")
+	hud.update_skill_status(player_level, skill_points, skill_levels)
+	hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
 	_refresh_bestiary()
 
 func _on_inventory_changed(current: int, capacity: int) -> void:
@@ -359,11 +374,19 @@ func _on_inventory_changed(current: int, capacity: int) -> void:
 
 func _on_trash_collected(_value: int) -> void:
 	collected_trash += 1
+	_add_player_xp(2)
 	_check_restoration()
 
 func _on_deposit_requested() -> void:
 	var amount := player.collect_bag_contents()
-	var earned := amount * (1 + int(upgrades["value"]))
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - last_deposit_time <= 45.0:
+		combo_multiplier = minf(2.5, combo_multiplier + 0.25 + float(skill_levels["combo"]) * 0.1)
+	else:
+		combo_multiplier = 1.0
+	last_deposit_time = now
+	var combo_bonus := 1.0 + 0.15 * float(maxi(0, amount - 5) / 5)
+	var earned := int(round(float(amount) * (1.0 + int(upgrades["value"])) * combo_multiplier * combo_bonus))
 	money += earned
 	hud.update_money(money)
 	hud.update_mission("Sigue explorando y recupera el ecosistema")
@@ -371,7 +394,8 @@ func _on_deposit_requested() -> void:
 		var pulse := create_tween()
 		pulse.tween_property(station, "scale", Vector3.ONE * 1.12, 0.12)
 		pulse.tween_property(station, "scale", Vector3.ONE, 0.2)
-	hud.show_message("¡Reciclaje completado! +$%d" % earned)
+	hud.show_message("¡Reciclaje! +$%d · Combo x%.2f" % [earned, combo_multiplier])
+	_add_player_xp(amount * 3)
 	_save_game()
 
 func _restoration_percent() -> int:
@@ -428,8 +452,9 @@ func _species_catalog() -> Array[Dictionary]:
 
 func _upgrade_cost(upgrade_id: String) -> int:
 	var level := int(upgrades[upgrade_id])
-	var base_cost := {"speed": 40, "capacity": 55, "value": 70, "range": 45, "day": 60}
-	return int(base_cost[upgrade_id]) * (level + 1)
+	var base_cost := {"speed": 40, "capacity": 55, "value": 70, "range": 45, "day": 60, "vacuum": 240, "discount": 180}
+	var discount_factor := pow(0.92, float(upgrades.get("discount", 0)))
+	return maxi(1, int(round(float(base_cost.get(upgrade_id, 50)) * float(level + 1) * discount_factor)))
 
 func _buy_upgrade(upgrade_id: String) -> void:
 	if is_day:
@@ -445,12 +470,16 @@ func _buy_upgrade(upgrade_id: String) -> void:
 	upgrades[upgrade_id] = int(upgrades[upgrade_id]) + 1
 	_apply_upgrades()
 	hud.update_money(money)
+	hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
 	hud.show_message("Mejora adquirida: %s · -$%d" % [upgrade_id, cost])
 	_save_game()
 
 func _apply_upgrades() -> void:
 	if player == null:
 		return
+	if int(upgrades.get("vacuum", 0)) > 0:
+		player.unlock_vacuum()
+	player.vacuum_radius = 3.2 + float(skill_levels.get("magnet", 0)) * 0.35
 	player.walk_speed = 5.0 + float(upgrades["speed"]) * 0.7
 	player.sprint_speed = 8.0 + float(upgrades["speed"]) * 0.9
 	if int(upgrades["capacity"]) > 0:
@@ -461,8 +490,8 @@ func _apply_upgrades() -> void:
 	player.interaction_range = 5.0 + float(upgrades["range"]) * 1.0
 
 func _perform_prestige() -> void:
-	if _restoration_percent() < 100:
-		hud.show_message("Necesitas restaurar el bioma al 100% para prestigiar.")
+	if _restoration_percent() < 98:
+		hud.show_message("Necesitas restaurar al menos el 98% del bioma para prestigiar.")
 		return
 	prestige_count += 1
 	collected_trash = 0
@@ -483,6 +512,126 @@ func _update_hud() -> void:
 		hud.update_bag(player.bag_count, player.bag_capacity)
 		hud.update_progress(_restoration_percent())
 
+
+func _open_shop() -> void:
+	if hud:
+		hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
+		hud.show_shop(true)
+
+func _all_upgrade_costs() -> Dictionary:
+	var costs := {}
+	for upgrade_id in upgrades:
+		costs[upgrade_id] = _upgrade_cost(str(upgrade_id))
+	return costs
+
+func _add_player_xp(amount: int) -> void:
+	player_xp += amount
+	var next_level_xp := player_level * 30
+	while player_xp >= next_level_xp:
+		player_xp -= next_level_xp
+		player_level += 1
+		skill_points += 1
+		next_level_xp = player_level * 30
+		if hud:
+			hud.show_message("¡Nivel %d! Ganaste 1 punto de habilidad." % player_level)
+	if hud:
+		hud.update_skill_status(player_level, skill_points, skill_levels)
+
+func _spend_skill_point(skill_id: String = "agility") -> void:
+	if skill_points <= 0 or not skill_levels.has(skill_id):
+		if hud:
+			hud.show_message("Necesitas puntos de habilidad. Gana XP reciclando.")
+		return
+	skill_points -= 1
+	skill_levels[skill_id] = int(skill_levels[skill_id]) + 1
+	if skill_id == "agility" and player:
+		player.walk_speed += 0.35
+		player.sprint_speed += 0.45
+	elif skill_id == "capacity" and player:
+		player.increase_capacity(1)
+	elif skill_id == "magnet" and player:
+		player.vacuum_radius += 0.35
+	elif skill_id == "combo":
+		combo_multiplier = minf(2.5, combo_multiplier + 0.1)
+	hud.update_skill_status(player_level, skill_points, skill_levels)
+	hud.show_message("Habilidad mejorada: %s" % skill_id)
+	_save_game()
+
+func _create_pond() -> void:
+	var pond := Node3D.new()
+	pond.name = "LilyPond"
+	pond.position = Vector3(-18.0, 0.0, -20.0)
+	add_child(pond)
+	var water := MeshInstance3D.new()
+	var water_mesh := CylinderMesh.new()
+	water_mesh.top_radius = 5.8
+	water_mesh.bottom_radius = 5.8
+	water_mesh.height = 0.18
+	water.mesh = water_mesh
+	water.position.y = -0.05
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color(0.10, 0.38, 0.43)
+	water_material.metallic = 0.18
+	water_material.roughness = 0.12
+	water.material_override = water_material
+	pond.add_child(water)
+	for lily_index in range(8):
+		var lily := MeshInstance3D.new()
+		var lily_mesh := CylinderMesh.new()
+		lily_mesh.top_radius = 0.62
+		lily_mesh.bottom_radius = 0.62
+		lily_mesh.height = 0.06
+		lily.mesh = lily_mesh
+		var angle := TAU * float(lily_index) / 8.0
+		lily.position = Vector3(cos(angle) * 3.0, 0.08, sin(angle) * 3.0)
+		var lily_material := StandardMaterial3D.new()
+		lily_material.albedo_color = Color(0.20, 0.48, 0.25)
+		lily.material_override = lily_material
+		pond.add_child(lily)
+		if lily_index == 2:
+			var frog := MeshInstance3D.new()
+			var frog_mesh := SphereMesh.new()
+			frog_mesh.radial_segments = 24
+			frog_mesh.rings = 16
+			frog_mesh.radius = 0.18
+			frog_mesh.height = 0.22
+			frog.mesh = frog_mesh
+			frog.position = lily.position + Vector3(0.0, 0.16, 0.0)
+			var frog_material := StandardMaterial3D.new()
+			frog_material.albedo_color = Color(0.28, 0.55, 0.22)
+			frog.material_override = frog_material
+			pond.add_child(frog)
+
+func _create_clouds() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41827
+	for cloud_index in range(6):
+		var cloud := Node3D.new()
+		cloud.name = "Cloud_%d" % cloud_index
+		cloud.position = Vector3(rng.randf_range(-65, 65), rng.randf_range(27, 35), rng.randf_range(-60, 60))
+		cloud.set_meta("speed", rng.randf_range(0.55, 1.15))
+		add_child(cloud)
+		var cloud_material := StandardMaterial3D.new()
+		cloud_material.albedo_color = Color(0.88, 0.92, 0.94)
+		for puff in range(12):
+			var puff_node := MeshInstance3D.new()
+			var puff_mesh := SphereMesh.new()
+			puff_mesh.radial_segments = 24
+			puff_mesh.rings = 16
+			puff_mesh.radius = rng.randf_range(1.0, 2.0)
+			puff_mesh.height = puff_mesh.radius * 0.8
+			puff_node.mesh = puff_mesh
+			puff_node.position = Vector3(rng.randf_range(-3.5, 3.5), rng.randf_range(-0.5, 0.6), rng.randf_range(-1.2, 1.2))
+			puff_node.material_override = cloud_material
+			cloud.add_child(puff_node)
+		cloud_nodes.append(cloud)
+
+func _update_clouds(delta: float) -> void:
+	for cloud in cloud_nodes:
+		cloud.position.x += float(cloud.get_meta("speed", 0.8)) * delta
+		if cloud.position.x > 75.0:
+			cloud.position.x = -75.0
+
 func _save_game() -> void:
 	var config := ConfigFile.new()
 	config.set_value("economy", "money", money)
@@ -491,6 +640,10 @@ func _save_game() -> void:
 	config.set_value("progress", "species_unlocked", species_unlocked)
 	config.set_value("progress", "unlocked_zones", unlocked_zones)
 	config.set_value("upgrades", "levels", upgrades)
+	config.set_value("skills", "levels", skill_levels)
+	config.set_value("skills", "points", skill_points)
+	config.set_value("skills", "xp", player_xp)
+	config.set_value("skills", "level", player_level)
 	config.save(SAVE_PATH)
 
 func _load_game() -> void:
@@ -514,3 +667,9 @@ func _load_game() -> void:
 	var saved_upgrades: Dictionary = config.get_value("upgrades", "levels", upgrades)
 	for key in upgrades:
 		upgrades[key] = int(saved_upgrades.get(key, 0))
+	var saved_skills: Dictionary = config.get_value("skills", "levels", skill_levels)
+	for key in skill_levels:
+		skill_levels[key] = int(saved_skills.get(key, 0))
+	skill_points = int(config.get_value("skills", "points", 0))
+	player_xp = int(config.get_value("skills", "xp", 0))
+	player_level = int(config.get_value("skills", "level", 1))
