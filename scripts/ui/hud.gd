@@ -32,6 +32,7 @@ var achievement_count: int = 0
 var message_time_left: float = 0.0
 var shop_obscured_controls: Array[Control] = []
 var pause_panel: PanelContainer
+var pause_backdrop: ColorRect
 var is_paused: bool = false
 
 func _ready() -> void:
@@ -297,12 +298,15 @@ func toggle_pause() -> void:
 	is_paused = not is_paused
 	if pause_panel:
 		pause_panel.visible = is_paused
+	if pause_backdrop:
+		pause_backdrop.visible = is_paused
 	get_tree().paused = is_paused
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if is_paused else Input.MOUSE_MODE_CAPTURED
 	pause_state_changed.emit(is_paused)
 
 func _build_pause_menu(root: Control) -> void:
-	var backdrop := ColorRect.new()
+	pause_backdrop = ColorRect.new()
+	var backdrop := pause_backdrop
 	backdrop.color = Color(0.015, 0.025, 0.02, 0.78)
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
