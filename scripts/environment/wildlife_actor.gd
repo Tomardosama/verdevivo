@@ -9,13 +9,17 @@ var origin: Vector3
 var target: Vector3
 var wander_timer: float = 0.0
 var body: MeshInstance3D
+var animation_clock: float = 0.0
+var base_height: float = 0.0
 
 func _ready() -> void:
 	origin = position
+	base_height = position.y
 	_build_creature()
 	_choose_target()
 
 func _process(delta: float) -> void:
+	animation_clock += delta
 	wander_timer -= delta
 	if wander_timer <= 0.0:
 		_choose_target()
@@ -24,6 +28,9 @@ func _process(delta: float) -> void:
 	if direction.length() > 0.05:
 		global_position += direction.normalized() * move_speed * delta
 		look_at(Vector3(target.x, global_position.y, target.z), Vector3.UP)
+	rotation.z = sin(animation_clock * 2.0) * 0.025
+	if species_id == "bird":
+		position.y = base_height + sin(animation_clock * 3.0) * 0.08
 
 
 func _choose_target() -> void:
@@ -61,6 +68,10 @@ func _build_bird() -> void:
 	_part(self, SphereMesh.new(), Vector3(-0.27, 0.84, 0), cream, Vector3(0.28, 0.08, 0.24))
 	_part(self, SphereMesh.new(), Vector3(0.27, 0.84, 0), cream, Vector3(0.28, 0.08, 0.24))
 	_part(self, BoxMesh.new(), Vector3(0, 0.72, 0.48), Color(0.8, 0.55, 0.12), Vector3(0.12, 0.08, 0.22))
+	var eye_material := Color(0.04, 0.035, 0.025)
+	for side in [-1.0, 1.0]:
+		_part(self, SphereMesh.new(), Vector3(side * 0.13, 1.0, -0.48), eye_material, Vector3(0.045, 0.045, 0.035))
+		_part(self, CylinderMesh.new(), Vector3(side * 0.1, 0.58, 0.02), Color(0.55, 0.38, 0.16), Vector3(0.025, 0.35, 0.025))
 
 func _build_fox() -> void:
 	var orange := Color(0.78, 0.32, 0.10)
@@ -75,6 +86,12 @@ func _build_fox() -> void:
 		ear_mesh.bottom_radius = 0.5
 		ear_mesh.height = 1.0
 		_part(self, ear_mesh, Vector3(side * 0.17, 1.08, -0.58), orange, Vector3(0.55, 0.65, 0.35))
+		_part(self, SphereMesh.new(), Vector3(side * 0.12, 0.83, -0.81), Color(0.025, 0.02, 0.015), Vector3(0.045, 0.045, 0.035))
+		_part(self, SphereMesh.new(), Vector3(side * 0.18, 1.08, -0.59), Color(0.95, 0.68, 0.55), Vector3(0.07, 0.13, 0.045))
+	var tail := SphereMesh.new()
+	tail.radius = 0.28
+	tail.height = 1.0
+	_part(self, tail, Vector3(0.0, 0.58, 0.85), orange, Vector3(0.7, 0.7, 1.8))
 
 func _build_deer() -> void:
 	var tan := Color(0.55, 0.36, 0.20)
@@ -85,3 +102,13 @@ func _build_deer() -> void:
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 0.45, -0.32), dark, Vector3(0.08, 1.0, 0.08))
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 1.7, -0.62), dark, Vector3(0.035, 0.55, 0.035))
 		_part(self, SphereMesh.new(), Vector3(side * 0.34, 1.95, -0.62), dark, Vector3(0.06, 0.22, 0.06))
+		_part(self, CylinderMesh.new(), Vector3(side * 0.34, 1.88, -0.58), Color(0.38, 0.25, 0.14), Vector3(0.025, 0.34, 0.025))
+		_part(self, SphereMesh.new(), Vector3(side * 0.10, 1.42, -0.84), Color(0.025, 0.02, 0.015), Vector3(0.04, 0.04, 0.04))
+		_part(self, CylinderMesh.new(), Vector3(side * 0.18, 0.36, 0.05), dark, Vector3(0.07, 0.75, 0.07))
+	var antler_material := Color(0.68, 0.56, 0.38)
+	for side in [-1.0, 1.0]:
+		var antler := CylinderMesh.new()
+		antler.top_radius = 0.0
+		antler.bottom_radius = 0.07
+		antler.height = 0.72
+		_part(self, antler, Vector3(side * 0.23, 1.82, -0.61), antler_material, Vector3(1.0, 1.0, 0.55))
