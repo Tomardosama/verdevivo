@@ -48,6 +48,25 @@ func _ready() -> void:
 	mission_label = _make_label("MISIÓN · Recolecta y recicla residuos", 14)
 	for label in [money_label, bag_label, progress_label, phase_label, mission_label]:
 		status_box.add_child(label)
+	var bag_widget := _make_panel(Vector2(-190, -92), Vector2(170, 68))
+	bag_widget.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	root.add_child(bag_widget)
+	var bag_box := VBoxContainer.new()
+	bag_box.add_theme_constant_override("separation", 3)
+	bag_widget.add_child(bag_box)
+	var bag_icon_label := _make_label("▱  BOLSA  0%", 16)
+	bag_icon_label.name = "BagFillLabel"
+	bag_box.add_child(bag_icon_label)
+	var bag_bar := ProgressBar.new()
+	bag_bar.name = "BagFillBar"
+	bag_bar.min_value = 0
+	bag_bar.max_value = 100
+	bag_bar.value = 0
+	bag_bar.show_percentage = false
+	bag_bar.custom_minimum_size = Vector2(140, 14)
+	bag_box.add_child(bag_bar)
+	set_meta("bag_fill_label", bag_icon_label)
+	set_meta("bag_fill_bar", bag_bar)
 
 	var upgrades_panel := _make_panel(Vector2(22, 225), Vector2(370, 330))
 	root.add_child(upgrades_panel)
@@ -84,14 +103,23 @@ func _ready() -> void:
 	upgrade_box.add_child(prestige_button)
 
 	var skills_button := _make_button("ÁRBOL DE HABILIDADES · TAB")
-	skills_button.position = Vector2(522, 570)
+	skills_button.position = Vector2(20, -112)
 	skills_button.size = Vector2(230, 42)
+	skills_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	root.add_child(skills_button)
 	shop_obscured_controls.append(skills_button)
+	var level_alert := _make_label("!", 22, Color(1.0, 0.12, 0.10))
+	level_alert.name = "LevelUpAlert"
+	level_alert.position = Vector2(210, -116)
+	level_alert.add_theme_font_size_override("font_size", 25)
+	level_alert.visible = false
+	root.add_child(level_alert)
+	set_meta("level_alert", level_alert)
 	skills_button.pressed.connect(_toggle_skills)
 
 	skill_panel = _make_panel(Vector2.ZERO, Vector2(470, 360))
-	skill_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	skill_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	skill_panel.position = Vector2(20, -490)
 	skill_panel.visible = false
 	root.add_child(skill_panel)
 	var skill_box := VBoxContainer.new()
@@ -106,27 +134,31 @@ func _ready() -> void:
 		skill_box.add_child(skill_button)
 
 	var bestiary_button := _make_button("📖  BESTIARIO")
-	bestiary_button.position = Vector2(22, 570)
+	bestiary_button.position = Vector2(20, -62)
 	bestiary_button.size = Vector2(170, 42)
+	bestiary_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	root.add_child(bestiary_button)
 	shop_obscured_controls.append(bestiary_button)
 	bestiary_button.pressed.connect(func(): bestiary_toggled.emit())
 
 	var stats_button := _make_button("ESTADÍSTICAS")
-	stats_button.position = Vector2(202, 570)
-	stats_button.size = Vector2(170, 42)
+	stats_button.position = Vector2(198, -62)
+	stats_button.size = Vector2(150, 42)
+	stats_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	root.add_child(stats_button)
 	shop_obscured_controls.append(stats_button)
 	stats_button.pressed.connect(_toggle_stats)
 
 	var menu_button := _make_button("MENÚ")
-	menu_button.position = Vector2(382, 570)
+	menu_button.position = Vector2(356, -62)
 	menu_button.size = Vector2(120, 42)
+	menu_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	root.add_child(menu_button)
 	shop_obscured_controls.append(menu_button)
 	menu_button.pressed.connect(_toggle_menu)
 	menu_panel = _make_panel(Vector2.ZERO, Vector2(440, 300))
-	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	menu_panel.position = Vector2(20, -390)
 	menu_panel.visible = false
 	root.add_child(menu_panel)
 	var menu_box := VBoxContainer.new()
@@ -142,6 +174,8 @@ func _ready() -> void:
 	menu_box.add_child(_make_label("WASD mover · Shift correr · Clic recoger · E reciclar", 13))
 
 	bestiary_panel = _make_panel(Vector2(410, 210), Vector2(430, 330))
+	bestiary_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	bestiary_panel.position = Vector2(20, -430)
 	bestiary_panel.visible = false
 	root.add_child(bestiary_panel)
 	bestiary_list = VBoxContainer.new()
@@ -150,6 +184,8 @@ func _ready() -> void:
 	bestiary_list.add_child(_make_label("BESTIARIO DEL BOSQUE", 21))
 
 	stats_panel = _make_panel(Vector2(410, 210), Vector2(430, 250))
+	stats_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	stats_panel.position = Vector2(20, -350)
 	stats_panel.visible = false
 	root.add_child(stats_panel)
 	var stats_box := VBoxContainer.new()
@@ -253,6 +289,13 @@ func _on_upgrade_pressed(upgrade_id: String) -> void:
 
 func update_bag(current: int, capacity: int) -> void:
 	bag_label.text = "♧  Bolsa %d / %d" % [current, capacity]
+	var fill_percent := int(roundf(100.0 * float(current) / float(maxi(1, capacity))))
+	var fill_label := get_meta("bag_fill_label") as Label
+	var fill_bar := get_meta("bag_fill_bar") as ProgressBar
+	if fill_label:
+		fill_label.text = "▱  BOLSA  %d%%" % fill_percent
+	if fill_bar:
+		fill_bar.value = fill_percent
 
 func update_money(amount: int) -> void:
 	money_label.text = "✦  $%d" % amount
@@ -282,12 +325,28 @@ func update_upgrade_prices(costs: Dictionary, levels: Dictionary) -> void:
 		var current_level := int(levels.get(upgrade_id, 0))
 		var display_name := str(upgrade_names.get(upgrade_id, upgrade_id.capitalize()))
 		var detail := str(upgrade_descriptions.get(upgrade_id, "Mejora permanente"))
+		if upgrade_id == "day":
+			detail = "Cada nivel agrega 30 segundos al día (%.1f%% sobre el turno base)." % (100.0 * 30.0 / 210.0)
+		if upgrade_id == "discount":
+			var discount_percent := minf(35.0, float(current_level + 1) * 5.0)
+			detail = "Reduce el precio de las demás mejoras un %.0f%% por nivel (máximo 35%%)." % discount_percent
 		if upgrade_id == "vacuum":
 			detail = "Radio %.1f m · Trayecto %.2f s" % [3.2 + maxf(0.0, float(current_level - 1)) * 0.85, maxf(0.08, 0.24 - maxf(0.0, float(current_level - 1)) * 0.025)]
 			upgrade_buttons[index].text = "%s · Nv.%d · %.1f m · $%d" % [display_name, current_level, 3.2 + maxf(0.0, float(current_level - 1)) * 0.85, price]
 		else:
 			upgrade_buttons[index].text = "%s  ·  Nivel %d  ·  $%d" % [display_name, current_level, price]
-		upgrade_buttons[index].tooltip_text = "%s. %s. Precio: $%d." % [display_name, detail, price]
+		upgrade_buttons[index].tooltip_text = "%s. %s Precio actual: $%d." % [display_name, detail, price]
+
+func notify_level_up(level: int) -> void:
+	var alert := get_meta("level_alert") as Label
+	if alert:
+		alert.visible = true
+		alert.text = "! %d" % level
+	var panel := get_meta("notification_panel") as PanelContainer
+	if panel and message_label:
+		message_label.text = "¡SUBISTE AL NIVEL %d!" % level
+		panel.visible = true
+	message_time_left = 3.2
 
 func update_skill_status(level: int, points: int, levels: Dictionary) -> void:
 	if skill_status_label:
