@@ -3,6 +3,7 @@ class_name TRushHUD
 
 signal upgrade_requested(upgrade_id: String)
 signal prestige_requested
+signal skill_requested(skill_id: String)
 signal bestiary_toggled
 
 var money_label: Label
@@ -51,7 +52,9 @@ func _ready() -> void:
 		["capacity", "Bolsa", "+2 unidades de capacidad"],
 		["value", "Reciclaje", "Más ingresos por residuo"],
 		["range", "Alcance", "Recogida a más distancia"],
-		["day", "Turno", "Más tiempo de trabajo"]
+		["day", "Turno", "Más tiempo de trabajo"],
+		["vacuum", "Aspiradora", "Recolecta en radio · Mantén F"],
+		["discount", "Ahorro", "Reduce progresivamente otros costos"]
 	]
 	for item in upgrade_data:
 		var button := _make_button("%s  ·  %s" % [item[1], item[2]])
@@ -61,6 +64,27 @@ func _ready() -> void:
 	var prestige_button := _make_button("✧  RESTAURAR BIOMA · PRESTIGIO")
 	prestige_button.pressed.connect(func(): prestige_requested.emit())
 	upgrade_box.add_child(prestige_button)
+
+	var skills_button := _make_button("ÁRBOL DE HABILIDADES · TAB")
+	skills_button.position = Vector2(522, 570)
+	skills_button.size = Vector2(230, 42)
+	root.add_child(skills_button)
+	skills_button.pressed.connect(_toggle_skills)
+
+	skill_panel = _make_panel(Vector2.ZERO, Vector2(470, 360))
+	skill_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	skill_panel.visible = false
+	root.add_child(skill_panel)
+	var skill_box := VBoxContainer.new()
+	skill_box.add_theme_constant_override("separation", 8)
+	skill_panel.add_child(skill_box)
+	skill_box.add_child(_make_label("ÁRBOL DE HABILIDADES", 22))
+	skill_status_label = _make_label("Nivel 1 · 0 puntos", 16)
+	skill_box.add_child(skill_status_label)
+	for skill in [["agility", "Agilidad · más velocidad"], ["capacity", "Capacidad · +1 espacio"], ["combo", "Combo · mayor bonificación"], ["magnet", "Imán · aspiradora más amplia"]]:
+		var skill_button := _make_button(str(skill[1]))
+		skill_button.pressed.connect(func(): skill_requested.emit(str(skill[0])))
+		skill_box.add_child(skill_button)
 
 	var bestiary_button := _make_button("📖  BESTIARIO")
 	bestiary_button.position = Vector2(22, 570)
@@ -212,6 +236,20 @@ func update_phase(is_day: bool, seconds_left: int) -> void:
 
 func update_mission(value: String) -> void:
 	mission_label.text = "MISIÓN · " + value
+
+func update_skill_status(level: int, points: int, levels: Dictionary) -> void:
+	if skill_status_label:
+		skill_status_label.text = "Nivel %d · %d puntos disponibles\nAgilidad %d · Bolsa %d · Combo %d · Imán %d" % [level, points, int(levels.get("agility", 0)), int(levels.get("capacity", 0)), int(levels.get("combo", 0)), int(levels.get("magnet", 0))]
+
+func _toggle_skills() -> void:
+	skill_panel.visible = not skill_panel.visible
+	stats_panel.visible = false
+	bestiary_panel.visible = false
+	menu_panel.visible = false
+	if skill_panel.visible:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func set_upgrade_access(enabled: bool) -> void:
 	for button in upgrade_buttons:
