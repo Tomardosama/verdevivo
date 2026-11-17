@@ -50,6 +50,7 @@ func _process(delta: float) -> void:
 		is_day = not is_day
 		_on_phase_changed()
 	_update_sun()
+	_update_clouds(delta)
 	_check_zone_unlocks()
 	if hud:
 		hud.update_phase(is_day, int(ceil(duration - day_time)))
@@ -64,6 +65,9 @@ func _on_phase_changed() -> void:
 	if hud:
 		hud.set_upgrade_access(not is_day)
 		hud.show_message("Comienza el día: ¡a limpiar!" if is_day else "Llegó la noche: momento de invertir en mejoras.")
+	for actor in get_tree().get_nodes_in_group("wildlife"):
+		if actor.has_method("set_night_resting"):
+			actor.set_night_resting(not is_day)
 	if not is_day:
 		_save_game()
 
@@ -131,6 +135,7 @@ func _build_world() -> void:
 		_create_tree(trees, Vector3(cos(angle) * radius, 0, sin(angle) * radius))
 	_populate_ground_detail(rng, trees)
 	_create_zone_markers()
+	_create_clouds()
 
 func _create_tree(parent: Node3D, location: Vector3) -> void:
 	var tree := Node3D.new()
@@ -175,6 +180,8 @@ func _spawn_player() -> void:
 	player.inventory_changed.connect(_on_inventory_changed)
 	player.deposit_requested.connect(_on_deposit_requested)
 	player.trash_collected.connect(_on_trash_collected)
+	player.shop_requested.connect(_open_shop)
+	player.shop_preview_changed.connect(_on_shop_preview_changed)
 
 func _spawn_trash() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -256,6 +263,8 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 	for i in range(95):
 		var rock := MeshInstance3D.new()
 		var rock_mesh := SphereMesh.new()
+		rock_mesh.radial_segments = 24
+		rock_mesh.rings = 16
 		rock_mesh.radius = rng.randf_range(0.22, 0.72)
 		rock_mesh.height = rock_mesh.radius * rng.randf_range(0.75, 1.35)
 		rock.mesh = rock_mesh
@@ -264,6 +273,51 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 		rock.rotation = Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(0, TAU), rng.randf_range(-0.2, 0.2))
 		rock.material_override = rock_material
 		parent.add_child(rock)
+		for fragment_index in range(3):
+			var fragment := MeshInstance3D.new()
+			var fragment_mesh := SphereMesh.new()
+			fragment_mesh.radial_segments = 16
+			fragment_mesh.rings = 10
+			fragment_mesh.radius = rng.randf_range(0.12, 0.28)
+			fragment_mesh.height = fragment_mesh.radius * rng.randf_range(0.7, 1.2)
+			fragment.mesh = fragment_mesh
+			fragment.position = rock.position + Vector3(rng.randf_range(-0.45, 0.45), rng.randf_range(-0.08, 0.08), rng.randf_range(-0.4, 0.4))
+			fragment.material_override = rock_material
+			parent.add_child(fragment)
+
+func _create_clouds() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 44219
+	for cloud_index in range(5):
+		var cloud := Node3D.new()
+		cloud.name = "Cloud_%d" % cloud_index
+		cloud.position = Vector3(rng.randf_range(-65.0, 65.0), rng.randf_range(25.0, 34.0), rng.randf_range(-55.0, 55.0))
+		cloud.set_meta("drift_speed", rng.randf_range(0.8, 1.7))
+		add_child(cloud)
+		var cloud_material := StandardMaterial3D.new()
+		cloud_material.albedo_color = Color(0.88, 0.92, 0.91, 0.88)
+		cloud_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		cloud_material.roughness = 1.0
+		var lobes := rng.randi_range(9, 14)
+		for lobe_index in range(lobes):
+			var lobe := MeshInstance3D.new()
+			var sphere := SphereMesh.new()
+			sphere.radial_segments = 24
+			sphere.rings = 16
+			sphere.radius = rng.randf_range(0.8, 1.8)
+			sphere.height = sphere.radius * rng.randf_range(0.65, 1.0)
+			lobe.mesh = sphere
+			lobe.position = Vector3(rng.randf_range(-2.6, 2.6), rng.randf_range(-0.35, 0.55), rng.randf_range(-0.9, 0.9))
+			lobe.scale = Vector3(rng.randf_range(0.85, 1.35), 1.0, rng.randf_range(0.8, 1.2))
+			lobe.material_override = cloud_material
+			cloud.add_child(lobe)
+
+func _update_clouds(delta: float) -> void:
+	for cloud in get_children():
+		if cloud.name.begins_with("Cloud_"):
+			cloud.position.x += float(cloud.get_meta("drift_speed", 1.0)) * delta
+			if cloud.position.x > 72.0:
+				cloud.position.x = -72.0
 
 func _create_zone_markers() -> void:
 	var zones := [
@@ -342,6 +396,55 @@ func _spawn_station() -> void:
 	sign.font_size = 48
 	sign.modulate = Color(0.85, 1.0, 0.88)
 	station.add_child(sign)
+	_create_upgrade_shop()
+
+func _create_upgrade_shop() -> void:
+	var shop := Node3D.new()
+	shop.name = "ForestUpgradeShop"
+	shop.position = Vector3(4.2, 0.0, 1.2)
+	shop.add_to_group("upgrade_shop")
+	add_child(shop)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.34, 0.22, 0.12)
+	var green := StandardMaterial3D.new()
+	green.albedo_color = Color(0.16, 0.38, 0.24)
+	var body := MeshInstance3D.new()
+	var body_mesh := BoxMesh.new()
+	body_mesh.size = Vector3(3.2, 1.8, 2.0)
+	body.mesh = body_mesh
+	body.position.y = 0.9
+	body.material_override = wood
+	shop.add_child(body)
+	var counter := MeshInstance3D.new()
+	var counter_mesh := BoxMesh.new()
+	counter_mesh.size = Vector3(3.5, 0.22, 0.7)
+	counter.mesh = counter_mesh
+	counter.position = Vector3(0.0, 1.15, 1.15)
+	counter.material_override = green
+	shop.add_child(counter)
+	var roof := MeshInstance3D.new()
+	var roof_mesh := BoxMesh.new()
+	roof_mesh.size = Vector3(3.8, 0.25, 2.5)
+	roof.mesh = roof_mesh
+	roof.position.y = 2.05
+	roof.material_override = green
+	shop.add_child(roof)
+	for side in [-1.0, 1.0]:
+		var post := MeshInstance3D.new()
+		var post_mesh := CylinderMesh.new()
+		post_mesh.top_radius = 0.09
+		post_mesh.bottom_radius = 0.11
+		post_mesh.height = 2.0
+		post.mesh = post_mesh
+		post.position = Vector3(side * 1.65, 1.0, 0.0)
+		post.material_override = wood
+		shop.add_child(post)
+	var sign := Label3D.new()
+	sign.text = "TIENDA DE MEJORAS\n[E] INTERACTUAR · [TAB] VISTA RAPIDA"
+	sign.position = Vector3(0.0, 2.55, 0.0)
+	sign.font_size = 28
+	sign.modulate = Color(0.88, 1.0, 0.83)
+	shop.add_child(sign)
 
 func _create_hud() -> void:
 	hud = HUD_SCRIPT.new() as TRushHUD
@@ -350,8 +453,24 @@ func _create_hud() -> void:
 	hud.prestige_requested.connect(_perform_prestige)
 	hud.bestiary_toggled.connect(hud.toggle_bestiary)
 	hud.set_upgrade_access(not is_day)
+	hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
 	hud.update_mission("Recolecta residuos y llévalos a reciclar")
 	_refresh_bestiary()
+
+func _open_shop() -> void:
+	if hud:
+		hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
+		hud.show_shop(true)
+
+func _on_shop_preview_changed(visible: bool) -> void:
+	if hud:
+		hud.show_shop(visible)
+
+func _all_upgrade_costs() -> Dictionary:
+	var costs := {}
+	for upgrade_id in upgrades:
+		costs[upgrade_id] = _upgrade_cost(str(upgrade_id))
+	return costs
 
 func _on_inventory_changed(current: int, capacity: int) -> void:
 	if hud:
@@ -445,6 +564,7 @@ func _buy_upgrade(upgrade_id: String) -> void:
 	upgrades[upgrade_id] = int(upgrades[upgrade_id]) + 1
 	_apply_upgrades()
 	hud.update_money(money)
+	hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
 	hud.show_message("Mejora adquirida: %s · -$%d" % [upgrade_id, cost])
 	_save_game()
 
