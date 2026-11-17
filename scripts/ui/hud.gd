@@ -15,7 +15,8 @@ var mission_label: Label
 var stats_label: Label
 var upgrade_buttons: Array[Button] = []
 var upgrade_ids: Array[String] = []
-var upgrade_descriptions := {"speed": "Movimiento más rápido", "capacity": "+2 espacios de bolsa", "value": "Más ingresos por residuo", "range": "Mayor alcance manual", "day": "Más duración del día", "vacuum": "Radio y velocidad de succión", "discount": "Reduce otros costos"}
+var upgrade_descriptions := {"speed": "Movimiento más rápido", "capacity": "+2 espacios de bolsa", "value": "Más ingresos por residuo", "range": "Mayor alcance manual", "day": "Más duración del día", "vacuum": "Amplía el radio y acelera el viaje del residuo a la boquilla", "discount": "Reduce otros costos"}
+var upgrade_names := {"speed": "Velocidad", "capacity": "Bolsa", "value": "Valor reciclado", "range": "Alcance manual", "day": "Duración del día", "vacuum": "Aspiradora", "discount": "Descuento"}
 var bestiary_panel: PanelContainer
 var bestiary_list: VBoxContainer
 var stats_panel: PanelContainer
@@ -279,11 +280,13 @@ func update_upgrade_prices(costs: Dictionary, levels: Dictionary) -> void:
 		var upgrade_id := upgrade_ids[index]
 		var price := int(costs.get(upgrade_id, 0))
 		var current_level := int(levels.get(upgrade_id, 0))
-		var display_name := upgrade_id.capitalize()
-		upgrade_buttons[index].text = "%s  ·  Nivel %d  ·  $%d" % [display_name, current_level, price]
+		var display_name := str(upgrade_names.get(upgrade_id, upgrade_id.capitalize()))
 		var detail := str(upgrade_descriptions.get(upgrade_id, "Mejora permanente"))
 		if upgrade_id == "vacuum":
-			detail = "Radio %.1f m · Succión %.2f s" % [3.2 + maxf(0.0, float(current_level - 1)) * 0.85, maxf(0.08, 0.24 - maxf(0.0, float(current_level - 1)) * 0.025)]
+			detail = "Radio %.1f m · Trayecto %.2f s" % [3.2 + maxf(0.0, float(current_level - 1)) * 0.85, maxf(0.08, 0.24 - maxf(0.0, float(current_level - 1)) * 0.025)]
+			upgrade_buttons[index].text = "%s · Nv.%d · %.1f m · $%d" % [display_name, current_level, 3.2 + maxf(0.0, float(current_level - 1)) * 0.85, price]
+		else:
+			upgrade_buttons[index].text = "%s  ·  Nivel %d  ·  $%d" % [display_name, current_level, price]
 		upgrade_buttons[index].tooltip_text = "%s. %s. Precio: $%d." % [display_name, detail, price]
 
 func update_skill_status(level: int, points: int, levels: Dictionary) -> void:
