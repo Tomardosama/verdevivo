@@ -184,15 +184,19 @@ func _play_vacuum_wind() -> void:
 		vacuum_nozzle.add_child(gust)
 	if bool(gust.get_meta("animating", false)):
 		return
+	var wind_material := gust.material_override as StandardMaterial3D
+	if wind_material == null:
+		return
 	gust.set_meta("animating", true)
 	gust.visible = true
 	gust.scale = Vector3(0.35, 0.35, 0.35)
+	wind_material.albedo_color = Color(0.72, 0.91, 0.96, 0.48)
 	var tween := create_tween()
 	tween.tween_property(gust, "scale", Vector3(1.35, 1.35, 1.35), 0.22)
-	tween.parallel().tween_property(gust, "modulate:a", 0.0, 0.22)
+	tween.parallel().tween_property(wind_material, "albedo_color", Color(0.72, 0.91, 0.96, 0.0), 0.22)
 	tween.tween_callback(func():
 		gust.visible = false
-		gust.modulate.a = 1.0
+		wind_material.albedo_color = Color(0.72, 0.91, 0.96, 0.48)
 		gust.set_meta("animating", false)
 	)
 
