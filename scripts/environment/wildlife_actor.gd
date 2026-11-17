@@ -70,7 +70,11 @@ func _build_fox() -> void:
 	_part(self, SphereMesh.new(), Vector3(0, 0.63, 0.72), white, Vector3(0.2, 0.2, 0.55))
 	for side in [-1.0, 1.0]:
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 0.32, -0.28), orange, Vector3(0.12, 0.55, 0.12))
-		_part(self, ConeMesh.new(), Vector3(side * 0.17, 1.08, -0.58), orange, Vector3(0.55, 0.65, 0.35))
+		var ear_mesh := CylinderMesh.new()
+		ear_mesh.top_radius = 0.0
+		ear_mesh.bottom_radius = 0.5
+		ear_mesh.height = 1.0
+		_part(self, ear_mesh, Vector3(side * 0.17, 1.08, -0.58), orange, Vector3(0.55, 0.65, 0.35))
 
 func _build_deer() -> void:
 	var tan := Color(0.55, 0.36, 0.20)
