@@ -110,6 +110,7 @@ func _ready() -> void:
 	shop_obscured_controls.append(skills_button)
 	var level_alert := _make_label("!", 22, Color(1.0, 0.12, 0.10))
 	level_alert.name = "LevelUpAlert"
+	level_alert.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	level_alert.position = Vector2(210, -116)
 	level_alert.add_theme_font_size_override("font_size", 25)
 	level_alert.visible = false
@@ -328,11 +329,14 @@ func update_upgrade_prices(costs: Dictionary, levels: Dictionary) -> void:
 		var current_level := int(levels.get(upgrade_id, 0))
 		var display_name := str(upgrade_names.get(upgrade_id, upgrade_id.capitalize()))
 		var detail := str(upgrade_descriptions.get(upgrade_id, "Mejora permanente"))
-		if upgrade_id == "day":
-			detail = "Cada nivel agrega 30 segundos al día (%.1f%% sobre el turno base)." % (100.0 * 30.0 / 210.0)
 		if upgrade_id == "discount":
-			var discount_percent := minf(35.0, float(current_level + 1) * 5.0)
-			detail = "Reduce el precio de las demás mejoras un %.0f%% por nivel (máximo 35%%)." % discount_percent
+			var current_discount := (1.0 - pow(0.92, float(current_level))) * 100.0
+			detail = "Descuento actual: %.1f%%. Al comprar: +8%% multiplicativo." % current_discount
+		if upgrade_id == "day":
+			detail = "Cada nivel agrega +30 s al día (+14,3%% respecto de los 210 s base)."
+		if upgrade_id == "discount":
+			var discount_percent := (1.0 - pow(0.92, float(current_level + 1))) * 100.0
+			detail = "Este nivel deja los precios un 8%% más bajos. Descuento acumulado tras comprarlo: %.1f%%." % discount_percent
 		if upgrade_id == "vacuum":
 			detail = "Radio %.1f m · Trayecto %.2f s" % [3.2 + maxf(0.0, float(current_level - 1)) * 0.85, maxf(0.08, 0.24 - maxf(0.0, float(current_level - 1)) * 0.025)]
 			upgrade_buttons[index].text = "%s · Nv.%d · %.1f m · $%d" % [display_name, current_level, 3.2 + maxf(0.0, float(current_level - 1)) * 0.85, price]
