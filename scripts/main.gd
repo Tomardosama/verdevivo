@@ -500,8 +500,17 @@ func _load_game() -> void:
 	money = int(config.get_value("economy", "money", 0))
 	prestige_count = int(config.get_value("progress", "prestige", 0))
 	collected_trash = int(config.get_value("progress", "collected_trash", 0))
-	species_unlocked = config.get_value("progress", "species_unlocked", [])
-	unlocked_zones = config.get_value("progress", "unlocked_zones", [])
+	var saved_species: Variant = config.get_value("progress", "species_unlocked", [])
+	species_unlocked.clear()
+	if saved_species is Array:
+		for species_id in saved_species:
+			species_unlocked.append(str(species_id))
+
+	var saved_zones: Variant = config.get_value("progress", "unlocked_zones", [])
+	unlocked_zones.clear()
+	if saved_zones is Array:
+		for zone_id in saved_zones:
+			unlocked_zones.append(str(zone_id))
 	var saved_upgrades: Dictionary = config.get_value("upgrades", "levels", upgrades)
 	for key in upgrades:
 		upgrades[key] = int(saved_upgrades.get(key, 0))
