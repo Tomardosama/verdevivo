@@ -390,12 +390,12 @@ func _spawn_station() -> void:
 	ring.position.y = 0.82
 	ring.material_override = material
 	station.add_child(ring)
-	var sign := Label3D.new()
-	sign.text = "RECICLAJE\n[E]"
-	sign.position.y = 1.6
-	sign.font_size = 48
-	sign.modulate = Color(0.85, 1.0, 0.88)
-	station.add_child(sign)
+	var station_sign := Label3D.new()
+	station_sign.text = "RECICLAJE\n[E]"
+	station_sign.position.y = 1.6
+	station_sign.font_size = 48
+	station_sign.modulate = Color(0.85, 1.0, 0.88)
+	station.add_child(station_sign)
 	_create_upgrade_kiosk()
 
 
