@@ -14,12 +14,17 @@ var base_height: float = 0.0
 var resting_at_night: bool = false
 var body_rest_position: Vector3 = Vector3.ZERO
 var body_rest_rotation: Vector3 = Vector3.ZERO
+var body_home_position: Vector3 = Vector3.ZERO
+var body_home_rotation: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	add_to_group("wildlife")
 	origin = global_position
 	base_height = position.y
 	_build_creature()
+	if body:
+		body_home_position = body.position
+		body_home_rotation = body.rotation
 	_choose_target()
 
 func _process(delta: float) -> void:
@@ -37,8 +42,10 @@ func _process(delta: float) -> void:
 			position.y = lerpf(position.y, base_height - 0.12, delta * 2.0)
 		return
 	if body:
-		body.position.y = lerpf(body.position.y, body_rest_position.y, delta * 2.5)
-		body.rotation.z = lerpf(body.rotation.z, 0.0, delta * 2.5)
+		var target_body_position := body_rest_position if resting_at_night else body_home_position
+		var target_body_rotation := body_rest_rotation if resting_at_night else body_home_rotation
+		body.position.y = lerpf(body.position.y, target_body_position.y, delta * 2.5)
+		body.rotation.z = lerpf(body.rotation.z, target_body_rotation.z, delta * 2.5)
 	if direction.length() > 0.05:
 		global_position += direction.normalized() * move_speed * delta
 		look_at(Vector3(target.x, global_position.y, target.z), Vector3.UP)
