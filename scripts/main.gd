@@ -137,7 +137,10 @@ func _build_world() -> void:
 	for i in range(64):
 		var angle := rng.randf_range(0.0, TAU)
 		var radius := rng.randf_range(19.0, 54.0)
-		_create_tree(trees, Vector3(cos(angle) * radius, 0, sin(angle) * radius))
+		var tree_position := Vector3(cos(angle) * radius, 0, sin(angle) * radius)
+		if _is_clear_location(tree_position, 4.2):
+			_create_tree(trees, tree_position)
+			reserved_positions.append(tree_position)
 	_populate_ground_detail(rng, trees)
 	_create_zone_markers()
 	_create_pond()
@@ -199,10 +202,11 @@ func _spawn_trash() -> void:
 	for i in range(first_remaining, target_count):
 		var trash := TRASH_SCENE.instantiate() as TrashPickup
 		var location := Vector3.ZERO
-		for attempt in range(20):
+		for attempt in range(60):
 			location = Vector3(rng.randf_range(-49.0, 49.0), 0.0, rng.randf_range(-49.0, 49.0))
-			if location.length() > 7.0:
+			if location.length() > 8.0 and _is_clear_location(location, 2.0):
 				break
+		reserved_positions.append(location)
 		trash.position = location
 		var kind := i % type_names.size()
 		trash.trash_type = type_names[kind]
@@ -271,7 +275,11 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 		rock_mesh.radius = rng.randf_range(0.22, 0.72)
 		rock_mesh.height = rock_mesh.radius * rng.randf_range(0.75, 1.35)
 		rock.mesh = rock_mesh
-		rock.position = Vector3(rng.randf_range(-56, 56), rock_mesh.radius * 0.34, rng.randf_range(-56, 56))
+		var rock_ground_position := Vector3(rng.randf_range(-56, 56), 0.0, rng.randf_range(-56, 56))
+		if not _is_clear_location(rock_ground_position, rock_mesh.radius * 2.3):
+			continue
+		reserved_positions.append(rock_ground_position)
+		rock.position = Vector3(rock_ground_position.x, rock_mesh.radius * 0.34, rock_ground_position.z)
 		rock.scale = Vector3(rng.randf_range(0.8, 1.6), rng.randf_range(0.55, 0.9), rng.randf_range(0.8, 1.5))
 		rock.rotation = Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(0, TAU), rng.randf_range(-0.2, 0.2))
 		rock.material_override = rock_material
@@ -354,6 +362,57 @@ func _spawn_station() -> void:
 	sign.font_size = 48
 	sign.modulate = Color(0.85, 1.0, 0.88)
 	station.add_child(sign)
+	_create_upgrade_kiosk()
+
+
+func _create_upgrade_kiosk() -> void:
+	var kiosk := Node3D.new()
+	kiosk.name = "UpgradeKiosk"
+	kiosk.position = Vector3(4.2, 0.0, 1.2)
+	kiosk.add_to_group("upgrade_shop")
+	add_child(kiosk)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.35, 0.22, 0.13)
+	var green := StandardMaterial3D.new()
+	green.albedo_color = Color(0.16, 0.42, 0.27)
+	var counter := MeshInstance3D.new()
+	var counter_mesh := BoxMesh.new()
+	counter_mesh.size = Vector3(2.8, 1.1, 1.2)
+	counter.mesh = counter_mesh
+	counter.position.y = 0.55
+	counter.material_override = wood
+	kiosk.add_child(counter)
+	var roof := MeshInstance3D.new()
+	var roof_mesh := BoxMesh.new()
+	roof_mesh.size = Vector3(3.2, 0.22, 1.6)
+	roof.mesh = roof_mesh
+	roof.position.y = 2.05
+	roof.material_override = green
+	kiosk.add_child(roof)
+	for side in [-1.0, 1.0]:
+		var post := MeshInstance3D.new()
+		var post_mesh := CylinderMesh.new()
+		post_mesh.height = 2.0
+		post_mesh.top_radius = 0.07
+		post_mesh.bottom_radius = 0.09
+		post.mesh = post_mesh
+		post.position = Vector3(side * 1.35, 1.0, 0.0)
+		post.material_override = wood
+		kiosk.add_child(post)
+	var label := Label3D.new()
+	label.text = "TIENDA DE MEJORAS\\n[E]"
+	label.position.y = 2.35
+	label.font_size = 34
+	label.modulate = Color(0.9, 1.0, 0.84)
+	kiosk.add_child(label)
+
+func _is_clear_location(location: Vector3, clearance: float) -> bool:
+	if location.length() < 8.0:
+		return false
+	for reserved in reserved_positions:
+		if Vector2(location.x, location.z).distance_to(Vector2(reserved.x, reserved.z)) < clearance:
+			return false
+	return true
 
 func _create_hud() -> void:
 	hud = HUD_SCRIPT.new() as TRushHUD
@@ -378,6 +437,7 @@ func _on_trash_collected(_value: int) -> void:
 	_check_restoration()
 
 func _on_deposit_requested() -> void:
+	var deposited_items := player.bag_count
 	var amount := player.collect_bag_contents()
 	var now := Time.get_ticks_msec() / 1000.0
 	if now - last_deposit_time <= 45.0:
@@ -385,7 +445,7 @@ func _on_deposit_requested() -> void:
 	else:
 		combo_multiplier = 1.0
 	last_deposit_time = now
-	var combo_bonus := 1.0 + 0.15 * float(maxi(0, amount - 5) / 5)
+	var combo_bonus := 1.0 + 0.15 * float(maxi(0, deposited_items - 5) / 5)
 	var earned := int(round(float(amount) * (1.0 + int(upgrades["value"])) * combo_multiplier * combo_bonus))
 	money += earned
 	hud.update_money(money)
@@ -395,7 +455,7 @@ func _on_deposit_requested() -> void:
 		pulse.tween_property(station, "scale", Vector3.ONE * 1.12, 0.12)
 		pulse.tween_property(station, "scale", Vector3.ONE, 0.2)
 	hud.show_message("¡Reciclaje! +$%d · Combo x%.2f" % [earned, combo_multiplier])
-	_add_player_xp(amount * 3)
+	_add_player_xp(deposited_items * 3)
 	_save_game()
 
 func _restoration_percent() -> int:
