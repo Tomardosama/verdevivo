@@ -11,8 +11,12 @@ var wander_timer: float = 0.0
 var body: MeshInstance3D
 var animation_clock: float = 0.0
 var base_height: float = 0.0
+var resting_at_night: bool = false
+var body_rest_position: Vector3 = Vector3.ZERO
+var body_rest_rotation: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
+	add_to_group("wildlife")
 	origin = global_position
 	base_height = position.y
 	_build_creature()
@@ -25,6 +29,16 @@ func _process(delta: float) -> void:
 		_choose_target()
 	var direction := target - global_position
 	direction.y = 0.0
+	if resting_at_night:
+		if body:
+			body.position.y = lerpf(body.position.y, body_rest_position.y, delta * 2.5)
+			body.rotation.z = lerpf(body.rotation.z, body_rest_rotation.z, delta * 2.5)
+		if species_id == "bird":
+			position.y = lerpf(position.y, base_height - 0.12, delta * 2.0)
+		return
+	if body:
+		body.position.y = lerpf(body.position.y, body_rest_position.y, delta * 2.5)
+		body.rotation.z = lerpf(body.rotation.z, 0.0, delta * 2.5)
 	if direction.length() > 0.05:
 		global_position += direction.normalized() * move_speed * delta
 		look_at(Vector3(target.x, global_position.y, target.z), Vector3.UP)
@@ -32,6 +46,26 @@ func _process(delta: float) -> void:
 	if species_id == "bird":
 		position.y = base_height + sin(animation_clock * 3.0) * 0.08
 
+
+func set_night_resting(resting: bool) -> void:
+	if resting_at_night == resting:
+		return
+	resting_at_night = resting
+	if resting:
+		wander_timer = 999.0
+		match species_id:
+			"bird":
+				body_rest_position = Vector3(0.0, 0.68, 0.0)
+				body_rest_rotation = Vector3(0.0, 0.0, -0.12)
+			"fox":
+				body_rest_position = Vector3(0.0, 0.45, 0.0)
+				body_rest_rotation = Vector3(0.0, 0.0, -0.18)
+			"deer":
+				body_rest_position = Vector3(0.0, 0.86, 0.0)
+				body_rest_rotation = Vector3(0.0, 0.0, 0.08)
+	else:
+		body_rest_position = Vector3.ZERO
+		_choose_target()
 
 func _choose_target() -> void:
 	wander_timer = randf_range(2.0, 5.0)
@@ -50,6 +84,10 @@ func _build_creature() -> void:
 
 func _part(parent: Node3D, mesh: Mesh, location: Vector3, color: Color, scale_value: Vector3 = Vector3.ONE) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
+	if mesh is SphereMesh:
+		var sphere := mesh as SphereMesh
+		sphere.radial_segments = 24
+		sphere.rings = 16
 	node.mesh = mesh
 	node.position = location
 	node.scale = scale_value
@@ -63,7 +101,7 @@ func _part(parent: Node3D, mesh: Mesh, location: Vector3, color: Color, scale_va
 func _build_bird() -> void:
 	var brown := Color(0.38, 0.24, 0.14)
 	var cream := Color(0.78, 0.68, 0.48)
-	_part(self, SphereMesh.new(), Vector3(0, 0.8, 0), brown, Vector3(0.34, 0.25, 0.48))
+	body = _part(self, SphereMesh.new(), Vector3(0, 0.8, 0), brown, Vector3(0.34, 0.25, 0.48))
 	_part(self, SphereMesh.new(), Vector3(0, 0.95, -0.32), brown, Vector3(0.2, 0.2, 0.2))
 	_part(self, SphereMesh.new(), Vector3(-0.27, 0.84, 0), cream, Vector3(0.28, 0.08, 0.24))
 	_part(self, SphereMesh.new(), Vector3(0.27, 0.84, 0), cream, Vector3(0.28, 0.08, 0.24))
@@ -76,7 +114,7 @@ func _build_bird() -> void:
 func _build_fox() -> void:
 	var orange := Color(0.78, 0.32, 0.10)
 	var white := Color(0.92, 0.84, 0.68)
-	_part(self, SphereMesh.new(), Vector3(0, 0.62, 0), orange, Vector3(0.42, 0.34, 0.72))
+	body = _part(self, SphereMesh.new(), Vector3(0, 0.62, 0), orange, Vector3(0.42, 0.34, 0.72))
 	_part(self, SphereMesh.new(), Vector3(0, 0.78, -0.55), orange, Vector3(0.3, 0.3, 0.32))
 	_part(self, SphereMesh.new(), Vector3(0, 0.63, 0.72), white, Vector3(0.2, 0.2, 0.55))
 	for side in [-1.0, 1.0]:
@@ -96,7 +134,7 @@ func _build_fox() -> void:
 func _build_deer() -> void:
 	var tan := Color(0.55, 0.36, 0.20)
 	var dark := Color(0.25, 0.16, 0.1)
-	_part(self, SphereMesh.new(), Vector3(0, 1.0, 0), tan, Vector3(0.42, 0.48, 0.78))
+	body = _part(self, SphereMesh.new(), Vector3(0, 1.0, 0), tan, Vector3(0.42, 0.48, 0.78))
 	_part(self, SphereMesh.new(), Vector3(0, 1.35, -0.62), tan, Vector3(0.25, 0.32, 0.28))
 	for side in [-1.0, 1.0]:
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 0.45, -0.32), dark, Vector3(0.08, 1.0, 0.08))
