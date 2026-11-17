@@ -459,8 +459,11 @@ func _create_hud() -> void:
 
 func _open_shop() -> void:
 	if hud:
+		var should_open := not hud.shop_open
 		hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
-		hud.show_shop(true)
+		hud.show_shop(should_open)
+		if not should_open:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _on_shop_preview_changed(visible: bool) -> void:
 	if hud:
@@ -523,6 +526,8 @@ func _spawn_species_marker(species: Dictionary) -> void:
 	actor.position = Vector3(randf_range(-7.0, 7.0), 0.0, randf_range(-7.0, 7.0))
 	actor.name = "Wildlife_" + str(species["id"])
 	add_child(actor)
+	if not is_day:
+		actor.set_night_resting(true)
 
 func _restore_unlocked_wildlife() -> void:
 	for species in _species_catalog():
