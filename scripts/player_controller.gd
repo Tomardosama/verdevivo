@@ -6,6 +6,7 @@ signal deposit_requested
 signal trash_collected(value: int)
 signal shop_requested
 signal skill_requested
+signal pause_requested
 signal sleep_requested
 
 @export_group("Movement")
@@ -107,6 +108,7 @@ func _physics_process(delta: float) -> void:
 		_request_deposit()
 	suppress_deposit_input = false
 	if collection_enabled and vacuum_unlocked and Input.is_action_pressed("vacuum"):
+		_play_vacuum_wind()
 		_vacuum_collect()
 
 
@@ -158,6 +160,38 @@ func _create_vacuum_model() -> void:
 	vacuum_nozzle.material_override = nozzle_material
 	root.add_child(vacuum_nozzle)
 	root.visible = false
+
+func _play_vacuum_wind() -> void:
+	if vacuum_nozzle == null or not is_instance_valid(vacuum_nozzle):
+		return
+	var gust := vacuum_nozzle.get_node_or_null("WindGust") as MeshInstance3D
+	if gust == null:
+		gust = MeshInstance3D.new()
+		gust.name = "WindGust"
+		var wind_mesh := TorusMesh.new()
+		wind_mesh.inner_radius = 0.045
+		wind_mesh.outer_radius = 0.16
+		gust.mesh = wind_mesh
+		var wind_material := StandardMaterial3D.new()
+		wind_material.albedo_color = Color(0.72, 0.91, 0.96, 0.48)
+		wind_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		wind_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		gust.material_override = wind_material
+		gust.rotation_degrees.x = 90.0
+		vacuum_nozzle.add_child(gust)
+	if bool(gust.get_meta("animating", false)):
+		return
+	gust.set_meta("animating", true)
+	gust.visible = true
+	gust.scale = Vector3(0.35, 0.35, 0.35)
+	var tween := create_tween()
+	tween.tween_property(gust, "scale", Vector3(1.35, 1.35, 1.35), 0.22)
+	tween.parallel().tween_property(gust, "modulate:a", 0.0, 0.22)
+	tween.tween_callback(func():
+		gust.visible = false
+		gust.modulate.a = 1.0
+		gust.set_meta("animating", false)
+	)
 
 func unlock_vacuum() -> void:
 	vacuum_unlocked = true
