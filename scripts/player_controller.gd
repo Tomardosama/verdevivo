@@ -17,6 +17,7 @@ signal trash_collected(value: int)
 @export var interaction_range: float = 5.0
 
 var bag_count: int = 0
+var bag_reward_total: int = 0
 var collection_enabled: bool = true
 var camera_pivot: Node3D
 var game_camera: Camera3D
@@ -100,9 +101,16 @@ func _try_collect() -> void:
 	if target == null or not target.is_in_group("garbage"):
 		return
 	var value := int(target.get("trash_value"))
+	var reward := int(target.get("reward_value"))
 	if value <= 0 or bag_count + value > bag_capacity:
 		return
 	bag_count += value
+	bag_reward_total += maxi(reward, 1)
+	if game_camera:
+		var original_fov := game_camera.fov
+		var collect_tween := create_tween()
+		collect_tween.tween_property(game_camera, "fov", original_fov - 3.0, 0.07)
+		collect_tween.tween_property(game_camera, "fov", original_fov, 0.16)
 	target.queue_free()
 	inventory_changed.emit(bag_count, bag_capacity)
 	trash_collected.emit(value)
@@ -115,8 +123,9 @@ func _request_deposit() -> void:
 			return
 
 func collect_bag_contents() -> int:
-	var amount := bag_count
+	var amount := bag_reward_total
 	bag_count = 0
+	bag_reward_total = 0
 	inventory_changed.emit(bag_count, bag_capacity)
 	return amount
 
