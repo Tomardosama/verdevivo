@@ -18,6 +18,11 @@ var bestiary_panel: PanelContainer
 var bestiary_list: VBoxContainer
 var stats_panel: PanelContainer
 var menu_panel: PanelContainer
+var shop_panel: PanelContainer
+var shop_open: bool = false
+var skill_panel: PanelContainer
+var skill_status_label: Label
+var crosshair: Label
 var achievement_count: int = 0
 var message_time_left: float = 0.0
 
@@ -42,6 +47,8 @@ func _ready() -> void:
 
 	var upgrades_panel := _make_panel(Vector2(22, 225), Vector2(370, 330))
 	root.add_child(upgrades_panel)
+	upgrades_panel.visible = false
+	shop_panel = upgrades_panel
 	var upgrade_box := VBoxContainer.new()
 	upgrade_box.add_theme_constant_override("separation", 6)
 	upgrades_panel.add_child(upgrade_box)
@@ -136,6 +143,14 @@ func _ready() -> void:
 	stats_label = _make_label("Todavía no hay estadísticas.", 16)
 	stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stats_box.add_child(stats_label)
+
+	crosshair = _make_label("+", 30, Color(1.0, 1.0, 1.0, 0.95))
+	crosshair.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	crosshair.position = Vector2(-8, -18)
+	crosshair.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	crosshair.add_theme_constant_override("shadow_offset_x", 2)
+	crosshair.add_theme_constant_override("shadow_offset_y", 2)
+	root.add_child(crosshair)
 
 	var help_panel := _make_panel(Vector2(22, -62), Vector2(550, 46))
 	help_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -253,15 +268,6 @@ func toggle_skills() -> void:
 
 func _toggle_skills() -> void:
 	toggle_skills()
-	return
-	# legacy handler
-	stats_panel.visible = false
-	bestiary_panel.visible = false
-	menu_panel.visible = false
-	if skill_panel.visible:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	else:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func show_shop(is_open: bool) -> void:
 	shop_open = is_open
@@ -271,7 +277,7 @@ func show_shop(is_open: bool) -> void:
 		bestiary_panel.visible = false
 		stats_panel.visible = false
 		menu_panel.visible = false
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if visible else Input.MOUSE_MODE_CAPTURED
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if is_open else Input.MOUSE_MODE_CAPTURED
 
 func set_upgrade_access(enabled: bool) -> void:
 	for button in upgrade_buttons:
