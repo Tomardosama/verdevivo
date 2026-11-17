@@ -19,6 +19,10 @@ var stats_panel: PanelContainer
 var menu_panel: PanelContainer
 var achievement_count: int = 0
 var message_time_left: float = 0.0
+var crosshair: Label
+var shop_panel: PanelContainer
+var shop_open: bool = false
+var upgrade_costs: Dictionary = {}
 
 func _ready() -> void:
 	var root := Control.new()
@@ -41,6 +45,8 @@ func _ready() -> void:
 
 	var upgrades_panel := _make_panel(Vector2(22, 225), Vector2(370, 330))
 	root.add_child(upgrades_panel)
+	upgrades_panel.visible = false
+	shop_panel = upgrades_panel
 	var upgrade_box := VBoxContainer.new()
 	upgrade_box.add_theme_constant_override("separation", 6)
 	upgrades_panel.add_child(upgrade_box)
@@ -55,6 +61,7 @@ func _ready() -> void:
 	]
 	for item in upgrade_data:
 		var button := _make_button("%s  ·  %s" % [item[1], item[2]])
+		button.set_meta("upgrade_id", item[0])
 		button.pressed.connect(_on_upgrade_pressed.bind(item[0]))
 		upgrade_box.add_child(button)
 		upgrade_buttons.append(button)
@@ -134,6 +141,14 @@ func _ready() -> void:
 	message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	notification_panel.add_child(message_label)
 	set_meta("notification_panel", notification_panel)
+
+	crosshair = _make_label("+", 30, Color(1.0, 1.0, 1.0, 0.95))
+	crosshair.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	crosshair.position = Vector2(-8, -18)
+	crosshair.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	crosshair.add_theme_constant_override("shadow_offset_x", 2)
+	crosshair.add_theme_constant_override("shadow_offset_y", 2)
+	root.add_child(crosshair)
 
 func _make_panel(position_value: Vector2, size_value: Vector2) -> PanelContainer:
 	var panel := PanelContainer.new()
@@ -217,6 +232,25 @@ func set_upgrade_access(enabled: bool) -> void:
 	for button in upgrade_buttons:
 		button.disabled = not enabled
 
+func update_upgrade_prices(costs: Dictionary, levels: Dictionary) -> void:
+	upgrade_costs = costs
+	var names := {"speed": "Velocidad", "capacity": "Bolsa", "value": "Reciclaje", "range": "Alcance", "day": "Turno"}
+	var descriptions := {"speed": "Movimiento más rápido", "capacity": "+2 unidades", "value": "Más ingresos", "range": "Mayor alcance", "day": "Más tiempo de día"}
+	for button in upgrade_buttons:
+		var upgrade_id := str(button.get_meta("upgrade_id", ""))
+		button.text = "%s · %s · $%d (Nv. %d)" % [names.get(upgrade_id, upgrade_id), descriptions.get(upgrade_id, ""), int(costs.get(upgrade_id, 0)), int(levels.get(upgrade_id, 0))]
+
+func show_shop(visible: bool) -> void:
+	shop_open = visible
+	shop_panel.visible = visible
+	if visible:
+		bestiary_panel.visible = false
+		stats_panel.visible = false
+		menu_panel.visible = false
+
+func close_shop() -> void:
+	show_shop(false)
+
 func set_bestiary(entries: Array[Dictionary]) -> void:
 	for index in range(1, bestiary_list.get_child_count()):
 		bestiary_list.get_child(index).queue_free()
@@ -238,6 +272,7 @@ func _toggle_stats() -> void:
 
 func _toggle_menu() -> void:
 	menu_panel.visible = not menu_panel.visible
+	close_shop()
 	stats_panel.visible = false
 	bestiary_panel.visible = false
 	if menu_panel.visible:
