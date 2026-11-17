@@ -27,6 +27,7 @@ var skill_status_label: Label
 var crosshair: Label
 var achievement_count: int = 0
 var message_time_left: float = 0.0
+var shop_obscured_controls: Array[Control] = []
 
 func _ready() -> void:
 	var root := Control.new()
@@ -85,6 +86,7 @@ func _ready() -> void:
 	skills_button.position = Vector2(522, 570)
 	skills_button.size = Vector2(230, 42)
 	root.add_child(skills_button)
+	shop_obscured_controls.append(skills_button)
 	skills_button.pressed.connect(_toggle_skills)
 
 	skill_panel = _make_panel(Vector2.ZERO, Vector2(470, 360))
@@ -106,18 +108,21 @@ func _ready() -> void:
 	bestiary_button.position = Vector2(22, 570)
 	bestiary_button.size = Vector2(170, 42)
 	root.add_child(bestiary_button)
+	shop_obscured_controls.append(bestiary_button)
 	bestiary_button.pressed.connect(func(): bestiary_toggled.emit())
 
 	var stats_button := _make_button("ESTADÍSTICAS")
 	stats_button.position = Vector2(202, 570)
 	stats_button.size = Vector2(170, 42)
 	root.add_child(stats_button)
+	shop_obscured_controls.append(stats_button)
 	stats_button.pressed.connect(_toggle_stats)
 
 	var menu_button := _make_button("MENÚ")
 	menu_button.position = Vector2(382, 570)
 	menu_button.size = Vector2(120, 42)
 	root.add_child(menu_button)
+	shop_obscured_controls.append(menu_button)
 	menu_button.pressed.connect(_toggle_menu)
 	menu_panel = _make_panel(Vector2.ZERO, Vector2(440, 300))
 	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -160,6 +165,7 @@ func _ready() -> void:
 	crosshair.add_theme_constant_override("shadow_offset_x", 2)
 	crosshair.add_theme_constant_override("shadow_offset_y", 2)
 	root.add_child(crosshair)
+	shop_obscured_controls.append(crosshair)
 
 	var help_panel := _make_panel(Vector2(22, -62), Vector2(550, 46))
 	help_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -227,6 +233,11 @@ func _make_label(value: String, font_size: int, color: Color = Color(0.91, 0.95,
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	return label
+
+func _unhandled_input(event: InputEvent) -> void:
+	if shop_open and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		show_shop(false)
+		get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
 	if message_time_left > 0.0:
@@ -297,6 +308,8 @@ func _toggle_skills() -> void:
 func show_shop(is_open: bool) -> void:
 	shop_open = is_open
 	shop_panel.visible = is_open
+	for control in shop_obscured_controls:
+		control.visible = not is_open
 	if is_open:
 		bestiary_panel.visible = false
 		stats_panel.visible = false
