@@ -4,6 +4,8 @@ class_name TRushPlayer
 signal inventory_changed(current: int, capacity: int)
 signal deposit_requested
 signal trash_collected(value: int)
+signal shop_requested
+signal skill_requested
 
 @export_group("Movement")
 @export var walk_speed: float = 5.0
@@ -21,6 +23,10 @@ var bag_reward_total: int = 0
 var collection_enabled: bool = true
 var camera_pivot: Node3D
 var game_camera: Camera3D
+var vacuum_unlocked: bool = false
+var vacuum_radius: float = 3.2
+var vacuum_nozzle: MeshInstance3D
+var vacuum_active: bool = false
 
 func _ready() -> void:
 	camera_pivot = get_node_or_null("CameraPivot")
@@ -30,6 +36,7 @@ func _ready() -> void:
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_create_input_actions()
+	_create_vacuum_model()
 	inventory_changed.emit(bag_count, bag_capacity)
 
 func _create_input_actions() -> void:
@@ -39,7 +46,9 @@ func _create_input_actions() -> void:
 		"move_left": KEY_A,
 		"move_right": KEY_D,
 		"sprint": KEY_SHIFT,
-		"deposit": KEY_E
+		"deposit": KEY_E,
+		"jump": KEY_SPACE,
+		"vacuum": KEY_F
 	}
 	for action_name in actions:
 		if not InputMap.has_action(action_name):
@@ -49,6 +58,12 @@ func _create_input_actions() -> void:
 		InputMap.action_add_event(action_name, key_event)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+		if _try_open_shop():
+			return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB:
+		skill_requested.emit()
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
@@ -71,17 +86,94 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if Input.is_action_just_pressed("jump") and is_on_floor():
+		velocity.y = 5.2
 	var direction := (global_basis * Vector3(input_vector.x, 0.0, input_vector.y)).normalized()
 	var speed := sprint_speed if Input.is_action_pressed("sprint") else walk_speed
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
-	if not is_on_floor():
+	if not is_on_floor() or velocity.y > 0.0:
 		velocity.y -= float(ProjectSettings.get_setting("physics/3d/default_gravity")) * delta
 	else:
 		velocity.y = 0.0
 	move_and_slide()
 	if Input.is_action_just_pressed("deposit"):
 		_request_deposit()
+	if vacuum_unlocked and Input.is_action_pressed("vacuum"):
+		_vacuum_collect()
+
+
+func _try_open_shop() -> bool:
+	for shop in get_tree().get_nodes_in_group("upgrade_shop"):
+		if shop is Node3D and global_position.distance_to(shop.global_position) <= 4.5:
+			shop_requested.emit()
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			return true
+	return false
+
+func _create_vacuum_model() -> void:
+	var root := Node3D.new()
+	root.name = "VacuumViewModel"
+	root.position = Vector3(0.34, -0.32, -0.58)
+	root.rotation_degrees = Vector3(4.0, -8.0, -8.0)
+	game_camera.add_child(root)
+	var body := MeshInstance3D.new()
+	var body_mesh := CylinderMesh.new()
+	body_mesh.top_radius = 0.075
+	body_mesh.bottom_radius = 0.12
+	body_mesh.height = 0.62
+	body.mesh = body_mesh
+	body.rotation_degrees.x = 90.0
+	body.position.z = 0.20
+	var body_material := StandardMaterial3D.new()
+	body_material.albedo_color = Color(0.16, 0.22, 0.19)
+	body_material.metallic = 0.35
+	body.material_override = body_material
+	root.add_child(body)
+	vacuum_nozzle = MeshInstance3D.new()
+	var nozzle_mesh := CylinderMesh.new()
+	nozzle_mesh.top_radius = 0.19
+	nozzle_mesh.bottom_radius = 0.075
+	nozzle_mesh.height = 0.22
+	vacuum_nozzle.mesh = nozzle_mesh
+	vacuum_nozzle.rotation_degrees.x = 90.0
+	vacuum_nozzle.position.z = -0.16
+	var nozzle_material := StandardMaterial3D.new()
+	nozzle_material.albedo_color = Color(0.28, 0.55, 0.39)
+	nozzle_material.metallic = 0.25
+	vacuum_nozzle.material_override = nozzle_material
+	root.add_child(vacuum_nozzle)
+	root.visible = false
+
+func unlock_vacuum() -> void:
+	vacuum_unlocked = true
+	var root := game_camera.get_node_or_null("VacuumViewModel")
+	if root:
+		root.visible = true
+
+func _vacuum_collect() -> void:
+	if vacuum_active or bag_count >= bag_capacity:
+		return
+	vacuum_active = true
+	for item in get_tree().get_nodes_in_group("garbage"):
+		if not item is Node3D or bag_count >= bag_capacity:
+			continue
+		if global_position.distance_to(item.global_position) > vacuum_radius:
+			continue
+		var value := int(item.get("trash_value"))
+		if value <= 0 or bag_count + value > bag_capacity:
+			continue
+		bag_count += value
+		bag_reward_total += maxi(int(item.get("reward_value")), 1)
+		trash_collected.emit(value)
+		inventory_changed.emit(bag_count, bag_capacity)
+		var target_item := item as Node3D
+		var tween := create_tween()
+		tween.tween_property(target_item, "global_position", vacuum_nozzle.global_position, 0.24).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_callback(target_item.queue_free)
+		await tween.finished
+		await get_tree().create_timer(0.035).timeout
+	vacuum_active = false
 
 func _try_collect() -> void:
 	if bag_count >= bag_capacity or game_camera == null:
