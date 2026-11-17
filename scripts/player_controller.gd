@@ -4,6 +4,8 @@ class_name TRushPlayer
 signal inventory_changed(current: int, capacity: int)
 signal deposit_requested
 signal trash_collected(value: int)
+signal shop_requested
+signal shop_preview_changed(visible: bool)
 
 @export_group("Movement")
 @export var walk_speed: float = 5.0
@@ -39,7 +41,8 @@ func _create_input_actions() -> void:
 		"move_left": KEY_A,
 		"move_right": KEY_D,
 		"sprint": KEY_SHIFT,
-		"deposit": KEY_E
+		"deposit": KEY_E,
+		"jump": KEY_SPACE
 	}
 	for action_name in actions:
 		if not InputMap.has_action(action_name):
@@ -49,9 +52,20 @@ func _create_input_actions() -> void:
 		InputMap.action_add_event(action_name, key_event)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.keycode == KEY_TAB:
+		if event.pressed and not event.echo:
+			shop_preview_changed.emit(true)
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		elif not event.pressed:
+			shop_preview_changed.emit(false)
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+		if _try_open_shop():
+			return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
@@ -71,6 +85,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if Input.is_action_just_pressed("jump") and is_on_floor():
+		velocity.y = 5.2
 	var direction := (global_basis * Vector3(input_vector.x, 0.0, input_vector.y)).normalized()
 	var speed := sprint_speed if Input.is_action_pressed("sprint") else walk_speed
 	velocity.x = direction.x * speed
@@ -114,6 +130,14 @@ func _try_collect() -> void:
 	target.queue_free()
 	inventory_changed.emit(bag_count, bag_capacity)
 	trash_collected.emit(value)
+
+func _try_open_shop() -> bool:
+	for shop in get_tree().get_nodes_in_group("upgrade_shop"):
+		if shop is Node3D and global_position.distance_to(shop.global_position) <= 4.0:
+			shop_requested.emit()
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			return true
+	return false
 
 func _request_deposit() -> void:
 	for station in get_tree().get_nodes_in_group("recycling_station"):
