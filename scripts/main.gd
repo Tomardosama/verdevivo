@@ -483,7 +483,7 @@ func _on_deposit_requested() -> void:
 	else:
 		combo_multiplier = 1.0
 	last_deposit_time = now
-	var combo_bonus := 1.0 + 0.15 * float(maxi(0, deposited_items - 5) / 5)
+	var combo_bonus := 1.0 + 0.15 * (float(maxi(0, deposited_items - 5)) / 5.0)
 	var earned := int(round(float(amount) * (1.0 + int(upgrades["value"])) * combo_multiplier * combo_bonus))
 	money += earned
 	hud.update_money(money)
