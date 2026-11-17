@@ -14,6 +14,7 @@ var message_label: Label
 var mission_label: Label
 var stats_label: Label
 var upgrade_buttons: Array[Button] = []
+var upgrade_ids: Array[String] = []
 var bestiary_panel: PanelContainer
 var bestiary_list: VBoxContainer
 var stats_panel: PanelContainer
@@ -68,6 +69,7 @@ func _ready() -> void:
 		button.pressed.connect(_on_upgrade_pressed.bind(item[0]))
 		upgrade_box.add_child(button)
 		upgrade_buttons.append(button)
+		upgrade_ids.append(str(item[0]))
 	var prestige_button := _make_button("✧  RESTAURAR BIOMA · PRESTIGIO")
 	prestige_button.pressed.connect(func(): prestige_requested.emit())
 	upgrade_box.add_child(prestige_button)
@@ -251,6 +253,17 @@ func update_phase(is_day: bool, seconds_left: int) -> void:
 
 func update_mission(value: String) -> void:
 	mission_label.text = "MISIÓN · " + value
+
+func update_upgrade_prices(costs: Dictionary, levels: Dictionary) -> void:
+	for index in range(upgrade_buttons.size()):
+		if index >= upgrade_ids.size():
+			continue
+		var upgrade_id := upgrade_ids[index]
+		var price := int(costs.get(upgrade_id, 0))
+		var current_level := int(levels.get(upgrade_id, 0))
+		var display_name := upgrade_id.capitalize()
+		upgrade_buttons[index].text = "%s  ·  Nivel %d  ·  $%d" % [display_name, current_level, price]
+		upgrade_buttons[index].tooltip_text = "Comprar %s por $%d. Nivel actual: %d." % [display_name, price, current_level]
 
 func update_skill_status(level: int, points: int, levels: Dictionary) -> void:
 	if skill_status_label:
