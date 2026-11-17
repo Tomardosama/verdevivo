@@ -707,7 +707,9 @@ func _apply_upgrades() -> void:
 		return
 	if int(upgrades.get("vacuum", 0)) > 0:
 		player.unlock_vacuum()
-	player.vacuum_radius = 3.2 + float(skill_levels.get("magnet", 0)) * 0.35
+	var vacuum_level := int(upgrades.get("vacuum", 0))
+	player.vacuum_radius = (3.2 + float(maxi(0, vacuum_level - 1)) * 0.85) + float(skill_levels.get("magnet", 0)) * 0.35
+	player.vacuum_pull_time = maxf(0.08, 0.24 - float(maxi(0, vacuum_level - 1)) * 0.025)
 	player.walk_speed = 5.0 + float(upgrades["speed"]) * 0.7
 	player.sprint_speed = 8.0 + float(upgrades["speed"]) * 0.9
 	if int(upgrades["capacity"]) > 0:
