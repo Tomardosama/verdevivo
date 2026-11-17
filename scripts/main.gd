@@ -269,6 +269,40 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 			mesh_node.material_override = grass_materials[rng.randi_range(0, grass_materials.size() - 1)]
 			tuft.add_child(mesh_node)
 		parent.add_child(tuft)
+	for plant_index in range(180):
+		var plant := Node3D.new()
+		plant.position = Vector3(rng.randf_range(-56, 56), 0.0, rng.randf_range(-56, 56))
+		var leaf_material := StandardMaterial3D.new()
+		leaf_material.albedo_color = [Color(0.15, 0.34, 0.13), Color(0.25, 0.43, 0.17), Color(0.36, 0.48, 0.21)][rng.randi_range(0, 2)]
+		for leaf_index in range(5):
+			var leaf := MeshInstance3D.new()
+			var leaf_mesh := SphereMesh.new()
+			leaf_mesh.radial_segments = 20
+			leaf_mesh.rings = 14
+			leaf_mesh.radius = rng.randf_range(0.12, 0.22)
+			leaf_mesh.height = leaf_mesh.radius * 1.7
+			leaf.mesh = leaf_mesh
+			leaf.position = Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(0.12, 0.38), rng.randf_range(-0.2, 0.2))
+			leaf.scale = Vector3(0.7, 1.0, 1.35)
+			leaf.material_override = leaf_material
+			plant.add_child(leaf)
+		parent.add_child(plant)
+	for big_rock_index in range(24):
+		var boulder := MeshInstance3D.new()
+		var boulder_mesh := SphereMesh.new()
+		boulder_mesh.radial_segments = 32
+		boulder_mesh.rings = 22
+		boulder_mesh.radius = rng.randf_range(1.1, 2.4)
+		boulder_mesh.height = boulder_mesh.radius * rng.randf_range(0.65, 1.15)
+		boulder.mesh = boulder_mesh
+		var boulder_pos := Vector3(rng.randf_range(-55, 55), 0.0, rng.randf_range(-55, 55))
+		if not _is_clear_location(boulder_pos, boulder_mesh.radius * 2.2):
+			continue
+		reserved_positions.append(boulder_pos)
+		boulder.position = Vector3(boulder_pos.x, boulder_mesh.radius * 0.32, boulder_pos.z)
+		boulder.scale = Vector3(rng.randf_range(1.0, 1.5), rng.randf_range(0.65, 0.95), rng.randf_range(1.0, 1.4))
+		boulder.material_override = rock_material
+		parent.add_child(boulder)
 	for i in range(95):
 		var rock := MeshInstance3D.new()
 		var rock_mesh := SphereMesh.new()
