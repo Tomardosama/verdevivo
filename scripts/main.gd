@@ -36,6 +36,8 @@ var combo_multiplier: float = 1.0
 var last_deposit_time: float = -100.0
 var cloud_nodes: Array[Node3D] = []
 var reserved_positions: Array[Vector3] = []
+var shop_node: Node3D
+var sleep_hut: Node3D
 
 func _ready() -> void:
 	session_start_time = Time.get_ticks_msec() / 1000.0
@@ -50,18 +52,22 @@ func _ready() -> void:
 	_update_hud()
 
 func _process(delta: float) -> void:
-	day_time += delta
+	if is_day:
+		day_time += delta
+		if day_time >= day_duration + float(upgrades["day"]) * 30.0:
+			day_time = 0.0
+			is_day = false
+			_on_phase_changed()
 	notification_cooldown = maxf(0.0, notification_cooldown - delta)
 	var duration := _current_phase_duration()
-	if day_time >= duration:
-		day_time = 0.0
-		is_day = not is_day
-		_on_phase_changed()
+	if not is_day and player and hud and hud.shop_open:
+		if shop_node == null or player.global_position.distance_to(shop_node.global_position) > 4.2:
+			hud.close_shop()
 	_update_sun()
 	_check_zone_unlocks()
 	_update_clouds(delta)
 	if hud:
-		hud.update_phase(is_day, int(ceil(duration - day_time)))
+		hud.update_phase(is_day, int(ceil(duration - day_time)) if is_day else 0)
 		hud.update_stats(money, collected_trash, prestige_count, int(Time.get_ticks_msec() / 1000.0 - session_start_time))
 
 func _current_phase_duration() -> float:
@@ -164,6 +170,7 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 	bark.albedo_color = Color(0.28, 0.16, 0.09)
 	trunk.material_override = bark
 	tree.add_child(trunk)
+	_add_box_collision(tree, Vector3(0, 1.4, 0), Vector3(0.72, 2.8, 0.72))
 	var crown := MeshInstance3D.new()
 	var crown_mesh := SphereMesh.new()
 	crown_mesh.radius = 1.35
@@ -193,6 +200,7 @@ func _spawn_player() -> void:
 	player.deposit_requested.connect(_on_deposit_requested)
 	player.trash_collected.connect(_on_trash_collected)
 	player.shop_requested.connect(_open_shop)
+	player.sleep_requested.connect(_start_new_day)
 
 func _spawn_trash() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -229,12 +237,28 @@ func _spawn_trash() -> void:
 					bottle.bottom_radius = 0.15
 					bottle.height = 0.52
 					visual.mesh = bottle
+					var cap := MeshInstance3D.new()
+					var cap_mesh := CylinderMesh.new()
+					cap_mesh.top_radius = 0.055
+					cap_mesh.bottom_radius = 0.055
+					cap_mesh.height = 0.055
+					cap.mesh = cap_mesh
+					cap.position = Vector3(0.0, 0.29, 0.0)
+					cap.material_override = _detail_material(Color(0.88, 0.30, 0.16))
+					trash.add_child(cap)
 				1:
 					var can := CylinderMesh.new()
 					can.top_radius = 0.14
 					can.bottom_radius = 0.14
 					can.height = 0.34
 					visual.mesh = can
+					var label := MeshInstance3D.new()
+					var label_mesh := BoxMesh.new()
+					label_mesh.size = Vector3(0.012, 0.13, 0.22)
+					label.mesh = label_mesh
+					label.position = Vector3(0.137, 0.0, 0.0)
+					label.material_override = _detail_material(Color(0.88, 0.78, 0.35))
+					trash.add_child(label)
 				2:
 					var paper := BoxMesh.new()
 					paper.size = Vector3(0.34, 0.035, 0.27)
@@ -242,9 +266,21 @@ func _spawn_trash() -> void:
 					visual.position.y = 0.05
 				3:
 					var glass := SphereMesh.new()
-					glass.radius = 0.19
-					glass.height = 0.38
+					glass.radial_segments = 3
+					glass.rings = 1
+					glass.radius = 0.22
+					glass.height = 0.10
 					visual.mesh = glass
+					visual.rotation = Vector3(0.15, rng.randf_range(0.0, TAU), 0.28)
+					for shard_index in range(2):
+						var shard := MeshInstance3D.new()
+						var shard_mesh := PrismMesh.new()
+						shard_mesh.size = Vector3(0.18, 0.08, 0.12)
+						shard.mesh = shard_mesh
+						shard.position = Vector3(rng.randf_range(-0.18, 0.18), 0.025, rng.randf_range(-0.15, 0.15))
+						shard.rotation = Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(0.0, TAU), rng.randf_range(-0.4, 0.4))
+						shard.material_override = material
+						trash.add_child(shard)
 		add_child(trash)
 	total_trash = target_count
 
@@ -306,6 +342,8 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 		boulder.scale = Vector3(rng.randf_range(1.0, 1.5), rng.randf_range(0.65, 0.95), rng.randf_range(1.0, 1.4))
 		boulder.material_override = rock_material
 		parent.add_child(boulder)
+		if big_rock_index < 2:
+			_add_box_collision(parent, boulder.position, Vector3(boulder_mesh.radius * 1.8, boulder_mesh.radius * 1.1, boulder_mesh.radius * 1.8))
 	for i in range(95):
 		var rock := MeshInstance3D.new()
 		var rock_mesh := SphereMesh.new()
@@ -361,6 +399,7 @@ func _spawn_station() -> void:
 	station = Node3D.new()
 	station.name = "RecyclingStation"
 	station.position = Vector3(0, 0, 0)
+	_add_box_collision(station, Vector3(0, 0.45, 0), Vector3(2.4, 0.9, 2.4))
 	station.add_to_group("recycling_station")
 	add_child(station)
 	var base := MeshInstance3D.new()
@@ -400,12 +439,15 @@ func _spawn_station() -> void:
 	station_sign.modulate = Color(0.85, 1.0, 0.88)
 	station.add_child(station_sign)
 	_create_upgrade_kiosk()
+	_create_sleep_hut()
 
 
 func _create_upgrade_kiosk() -> void:
 	var kiosk := Node3D.new()
 	kiosk.name = "UpgradeKiosk"
-	kiosk.position = Vector3(4.2, 0.0, 1.2)
+	kiosk.position = Vector3(7.5, 0.0, 0.0)
+	kiosk.rotation.y = PI / 2.0
+	shop_node = kiosk
 	kiosk.add_to_group("upgrade_shop")
 	add_child(kiosk)
 	var wood := StandardMaterial3D.new()
@@ -419,6 +461,7 @@ func _create_upgrade_kiosk() -> void:
 	counter.position.y = 0.55
 	counter.material_override = wood
 	kiosk.add_child(counter)
+	_add_box_collision(kiosk, Vector3(0, 0.55, 0), Vector3(2.8, 1.1, 1.2))
 	var roof := MeshInstance3D.new()
 	var roof_mesh := BoxMesh.new()
 	roof_mesh.size = Vector3(3.2, 0.22, 1.6)
@@ -437,11 +480,94 @@ func _create_upgrade_kiosk() -> void:
 		post.material_override = wood
 		kiosk.add_child(post)
 	var label := Label3D.new()
-	label.text = "TIENDA DE MEJORAS\\n[E]"
+	label.text = "TIENDA DE MEJORAS\n[E]"
 	label.position.y = 2.35
 	label.font_size = 34
 	label.modulate = Color(0.9, 1.0, 0.84)
 	kiosk.add_child(label)
+
+func _detail_material(color: Color) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.55
+	return material
+
+func _add_box_collision(parent: Node3D, local_position: Vector3, size: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.position = local_position
+	var shape_node := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	shape_node.shape = shape
+	body.add_child(shape_node)
+	parent.add_child(body)
+
+func _create_sleep_hut() -> void:
+	sleep_hut = Node3D.new()
+	sleep_hut.name = "NightRestHut"
+	sleep_hut.position = Vector3(-7.5, 0.0, 0.0)
+	sleep_hut.rotation.y = -PI / 2.0
+	add_child(sleep_hut)
+	var wood := _detail_material(Color(0.31, 0.20, 0.12))
+	var wall := MeshInstance3D.new()
+	var wall_mesh := BoxMesh.new()
+	wall_mesh.size = Vector3(3.8, 2.5, 0.22)
+	wall.mesh = wall_mesh
+	wall.position = Vector3(0, 1.25, 1.45)
+	wall.material_override = wood
+	sleep_hut.add_child(wall)
+	for side in [-1.0, 1.0]:
+		var side_wall := MeshInstance3D.new()
+		var side_mesh := BoxMesh.new()
+		side_mesh.size = Vector3(0.22, 2.5, 2.9)
+		side_wall.mesh = side_mesh
+		side_wall.position = Vector3(side * 1.8, 1.25, 0)
+		side_wall.material_override = wood
+		sleep_hut.add_child(side_wall)
+		_add_box_collision(sleep_hut, side_wall.position, side_mesh.size)
+	_add_box_collision(sleep_hut, wall.position, wall_mesh.size)
+	var roof := MeshInstance3D.new()
+	var roof_mesh := BoxMesh.new()
+	roof_mesh.size = Vector3(4.2, 0.28, 3.6)
+	roof.mesh = roof_mesh
+	roof.position.y = 2.65
+	roof.material_override = _detail_material(Color(0.18, 0.32, 0.20))
+	sleep_hut.add_child(roof)
+	var bed := MeshInstance3D.new()
+	var bed_mesh := BoxMesh.new()
+	bed_mesh.size = Vector3(1.35, 0.28, 0.72)
+	bed.mesh = bed_mesh
+	bed.position = Vector3(0, 0.42, 0.25)
+	bed.material_override = _detail_material(Color(0.56, 0.43, 0.30))
+	sleep_hut.add_child(bed)
+	var bed_marker := Area3D.new()
+	bed_marker.name = "SleepInteraction"
+	bed_marker.position = Vector3(0, 0.4, 0.25)
+	bed_marker.add_to_group("sleep_bed")
+	sleep_hut.add_child(bed_marker)
+	var bed_shape := CollisionShape3D.new()
+	var bed_sphere := SphereShape3D.new()
+	bed_sphere.radius = 1.8
+	bed_shape.shape = bed_sphere
+	bed_marker.add_child(bed_shape)
+	var sign := Label3D.new()
+	sign.text = "DESCANSAR\n[E]"
+	sign.position = Vector3(0, 2.0, -1.55)
+	sign.font_size = 32
+	sign.modulate = Color(0.9, 1.0, 0.84)
+	sleep_hut.add_child(sign)
+	_add_box_collision(sleep_hut, Vector3(0, 0.45, 1.35), Vector3(3.4, 0.9, 0.25))
+
+func _start_new_day() -> void:
+	if is_day:
+		if hud:
+			hud.show_message("La cama solo permite iniciar el día durante la noche.")
+		return
+	is_day = true
+	day_time = 0.0
+	_on_phase_changed()
+	if hud:
+		hud.show_message("¡Nuevo día! El bosque te espera.")
 
 func _is_clear_location(location: Vector3, clearance: float) -> bool:
 	if location.length() < 8.0:
