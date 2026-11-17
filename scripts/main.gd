@@ -70,6 +70,9 @@ func _current_phase_duration() -> float:
 func _on_phase_changed() -> void:
 	if player:
 		player.collection_enabled = is_day
+	for animal in get_tree().get_nodes_in_group("wildlife"):
+		if animal.has_method("set_night_resting"):
+			animal.set_night_resting(not is_day)
 	if hud:
 		hud.set_upgrade_access(not is_day)
 		hud.show_message("Comienza el día: ¡a limpiar!" if is_day else "Llegó la noche: momento de invertir en mejoras.")
@@ -523,6 +526,8 @@ func _spawn_species_marker(species: Dictionary) -> void:
 	actor.position = Vector3(randf_range(-7.0, 7.0), 0.0, randf_range(-7.0, 7.0))
 	actor.name = "Wildlife_" + str(species["id"])
 	add_child(actor)
+	if not is_day:
+		actor.set_night_resting(true)
 
 func _restore_unlocked_wildlife() -> void:
 	for species in _species_catalog():
