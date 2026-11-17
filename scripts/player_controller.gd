@@ -23,6 +23,7 @@ var bag_reward_total: int = 0
 var collection_enabled: bool = true
 var camera_pivot: Node3D
 var game_camera: Camera3D
+var suppress_deposit_input: bool = false
 
 func _ready() -> void:
 	camera_pivot = get_node_or_null("CameraPivot")
@@ -66,6 +67,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
 		if _try_open_shop():
+			suppress_deposit_input = true
 			return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -97,8 +99,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0.0
 	move_and_slide()
-	if Input.is_action_just_pressed("deposit"):
+	if Input.is_action_just_pressed("deposit") and not suppress_deposit_input:
 		_request_deposit()
+	suppress_deposit_input = false
 
 func _try_collect() -> void:
 	if bag_count >= bag_capacity or game_camera == null:
