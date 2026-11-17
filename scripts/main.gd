@@ -342,7 +342,7 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 		boulder.scale = Vector3(rng.randf_range(1.0, 1.5), rng.randf_range(0.65, 0.95), rng.randf_range(1.0, 1.4))
 		boulder.material_override = rock_material
 		parent.add_child(boulder)
-		if big_rock_index < 2:
+		if boulder_mesh.radius >= 1.8:
 			_add_box_collision(parent, boulder.position, Vector3(boulder_mesh.radius * 1.8, boulder_mesh.radius * 1.1, boulder_mesh.radius * 1.8))
 	for i in range(95):
 		var rock := MeshInstance3D.new()
