@@ -26,6 +26,7 @@ var camera_pivot: Node3D
 var game_camera: Camera3D
 var vacuum_unlocked: bool = false
 var vacuum_radius: float = 3.2
+var vacuum_pull_time: float = 0.24
 var vacuum_nozzle: MeshInstance3D
 var vacuum_active: bool = false
 var suppress_deposit_input: bool = false
@@ -90,8 +91,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			)
 
 func _physics_process(delta: float) -> void:
-	if Input.mouse_mode == Input.MOUSE_MODE_VISIBLE and not get_tree().get_first_node_in_group("upgrade_shop") == null:
-		pass
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = 5.2
@@ -184,7 +183,7 @@ func _vacuum_collect() -> void:
 		inventory_changed.emit(bag_count, bag_capacity)
 		var target_item := item as Node3D
 		var tween := create_tween()
-		tween.tween_property(target_item, "global_position", vacuum_nozzle.global_position, 0.24).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_property(target_item, "global_position", vacuum_nozzle.global_position, vacuum_pull_time).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tween.tween_callback(target_item.queue_free)
 		await tween.finished
 		await get_tree().create_timer(0.035).timeout
