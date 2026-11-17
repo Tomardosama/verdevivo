@@ -50,8 +50,10 @@ func _process(delta: float) -> void:
 		is_day = not is_day
 		_on_phase_changed()
 	_update_sun()
+	_check_zone_unlocks()
 	if hud:
 		hud.update_phase(is_day, int(ceil(duration - day_time)))
+		hud.update_stats(money, collected_trash, prestige_count, int(Time.get_ticks_msec() / 1000.0 - session_start_time))
 
 func _current_phase_duration() -> float:
 	return day_duration + float(upgrades["day"]) * 30.0 if is_day else night_duration
@@ -348,6 +350,7 @@ func _create_hud() -> void:
 	hud.prestige_requested.connect(_perform_prestige)
 	hud.bestiary_toggled.connect(hud.toggle_bestiary)
 	hud.set_upgrade_access(not is_day)
+	hud.update_mission("Recolecta residuos y llévalos a reciclar")
 	_refresh_bestiary()
 
 func _on_inventory_changed(current: int, capacity: int) -> void:
@@ -363,7 +366,12 @@ func _on_deposit_requested() -> void:
 	var earned := amount * (1 + int(upgrades["value"]))
 	money += earned
 	hud.update_money(money)
-	hud.show_message("Reciclaste %d residuos · +$%d" % [amount, earned])
+	hud.update_mission("Sigue explorando y recupera el ecosistema")
+	if station:
+		var pulse := create_tween()
+		pulse.tween_property(station, "scale", Vector3.ONE * 1.12, 0.12)
+		pulse.tween_property(station, "scale", Vector3.ONE, 0.2)
+	hud.show_message("¡Reciclaje completado! +$%d" % earned)
 	_save_game()
 
 func _restoration_percent() -> int:
@@ -386,6 +394,8 @@ func _check_restoration() -> void:
 			hud.show_message(milestone["message"])
 			_spawn_species_marker(milestone)
 			_refresh_bestiary()
+			if hud:
+				hud.update_mission("Sigue limpiando para recuperar el ecosistema")
 			_save_game()
 
 func _spawn_species_marker(species: Dictionary) -> void:
