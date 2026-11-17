@@ -16,6 +16,8 @@ var upgrade_buttons: Array[Button] = []
 var bestiary_panel: PanelContainer
 var bestiary_list: VBoxContainer
 var stats_panel: PanelContainer
+var menu_panel: PanelContainer
+var achievement_count: int = 0
 var message_time_left: float = 0.0
 
 func _ready() -> void:
@@ -71,6 +73,27 @@ func _ready() -> void:
 	stats_button.size = Vector2(170, 42)
 	root.add_child(stats_button)
 	stats_button.pressed.connect(_toggle_stats)
+
+	var menu_button := _make_button("MENÚ")
+	menu_button.position = Vector2(382, 570)
+	menu_button.size = Vector2(120, 42)
+	root.add_child(menu_button)
+	menu_button.pressed.connect(_toggle_menu)
+	menu_panel = _make_panel(Vector2.ZERO, Vector2(440, 300))
+	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	menu_panel.visible = false
+	root.add_child(menu_panel)
+	var menu_box := VBoxContainer.new()
+	menu_panel.add_child(menu_box)
+	menu_box.add_child(_make_label("TRush · RESTAURACIÓN", 24))
+	menu_box.add_child(_make_label("Explora, recupera residuos y devuelve la vida al bosque.", 15))
+	var resume_button := _make_button("CONTINUAR JUGANDO")
+	resume_button.pressed.connect(_toggle_menu)
+	menu_box.add_child(resume_button)
+	var menu_stats_button := _make_button("VER ESTADÍSTICAS")
+	menu_stats_button.pressed.connect(_toggle_stats)
+	menu_box.add_child(menu_stats_button)
+	menu_box.add_child(_make_label("WASD mover · Shift correr · Clic recoger · E reciclar", 13))
 
 	bestiary_panel = _make_panel(Vector2(410, 210), Vector2(430, 330))
 	bestiary_panel.visible = false
@@ -176,6 +199,13 @@ func update_money(amount: int) -> void:
 
 func update_progress(percent: int) -> void:
 	progress_label.text = "Bosque %d%% restaurado" % percent
+	var milestones := [{"value": 25, "name": "Primeros brotes"}, {"value": 50, "name": "Manos a la tierra"}, {"value": 75, "name": "Guardián del bosque"}, {"value": 100, "name": "Ecosistema restaurado"}]
+	for milestone in milestones:
+		var key := "achievement_" + str(milestone["value"])
+		if percent >= int(milestone["value"]) and not has_meta(key):
+			set_meta(key, true)
+			achievement_count += 1
+			show_message("Logro desbloqueado: " + str(milestone["name"]))
 
 func update_phase(is_day: bool, seconds_left: int) -> void:
 	phase_label.text = "%s  %s  ·  %02d:%02d" % ["☀" if is_day else "☾", "DÍA" if is_day else "NOCHE", seconds_left / 60, seconds_left % 60]
@@ -204,6 +234,14 @@ func toggle_bestiary() -> void:
 func _toggle_stats() -> void:
 	stats_panel.visible = not stats_panel.visible
 	bestiary_panel.visible = false
+	menu_panel.visible = false
+
+func _toggle_menu() -> void:
+	menu_panel.visible = not menu_panel.visible
+	stats_panel.visible = false
+	bestiary_panel.visible = false
+	if menu_panel.visible:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func update_stats(money: int, collected: int, prestige: int, elapsed_seconds: int) -> void:
 	stats_label.text = "Fondos acumulados: $%d\nResiduos recuperados: %d\nPrestigios: %d\nTiempo de sesión: %02d:%02d" % [money, collected, prestige, elapsed_seconds / 60, elapsed_seconds % 60]
