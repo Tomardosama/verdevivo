@@ -420,6 +420,7 @@ func _create_hud() -> void:
 	hud.upgrade_requested.connect(_buy_upgrade)
 	hud.prestige_requested.connect(_perform_prestige)
 	hud.skill_requested.connect(_spend_skill_point)
+	player.skill_requested.connect(hud.toggle_skills)
 	hud.bestiary_toggled.connect(hud.toggle_bestiary)
 	hud.set_upgrade_access(not is_day)
 	hud.update_mission("Recolecta residuos y llévalos a reciclar")
@@ -576,7 +577,7 @@ func _update_hud() -> void:
 func _open_shop() -> void:
 	if hud:
 		hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
-		hud.show_shop(true)
+		hud.show_shop(not hud.shop_open)
 
 func _all_upgrade_costs() -> Dictionary:
 	var costs := {}
