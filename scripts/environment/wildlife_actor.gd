@@ -9,6 +9,9 @@ var origin: Vector3
 var target: Vector3
 var wander_timer: float = 0.0
 var body: MeshInstance3D
+var resting_at_night: bool = false
+var home_body_position: Vector3 = Vector3.ZERO
+var home_body_rotation: Vector3 = Vector3.ZERO
 var animation_clock: float = 0.0
 var base_height: float = 0.0
 
@@ -16,11 +19,19 @@ func _ready() -> void:
 	origin = global_position
 	base_height = position.y
 	_build_creature()
+	if body:
+		home_body_position = body.position
+		home_body_rotation = body.rotation
 	_choose_target()
 
 func _process(delta: float) -> void:
 	animation_clock += delta
 	wander_timer -= delta
+	if resting_at_night:
+		if body:
+			body.position = body.position.lerp(home_body_position + Vector3(0.0, -0.18, 0.0), delta * 2.0)
+			body.rotation.z = lerpf(body.rotation.z, -0.16, delta * 2.0)
+		return
 	if wander_timer <= 0.0:
 		_choose_target()
 	var direction := target - global_position
@@ -34,6 +45,16 @@ func _process(delta: float) -> void:
 	if species_id == "bird":
 		position.y = base_height + sin(animation_clock * 3.0) * 0.08
 
+
+func set_night_resting(resting: bool) -> void:
+	resting_at_night = resting
+	if not resting:
+		if body:
+			body.position = home_body_position
+			body.rotation = home_body_rotation
+		_choose_target()
+	else:
+		wander_timer = 9999.0
 
 func _choose_target() -> void:
 	wander_timer = randf_range(2.0, 5.0)
