@@ -154,6 +154,8 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 	tree.add_child(trunk)
 	var crown := MeshInstance3D.new()
 	var crown_mesh := SphereMesh.new()
+	crown_mesh.radial_segments = 32
+	crown_mesh.rings = 20
 	crown_mesh.radius = 1.35
 	crown_mesh.height = 2.7
 	crown.mesh = crown_mesh
@@ -165,6 +167,8 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 	tree.add_child(crown)
 	var crown_second := MeshInstance3D.new()
 	var crown_mesh_second := SphereMesh.new()
+	crown_mesh_second.radial_segments = 28
+	crown_mesh_second.rings = 18
 	crown_mesh_second.radius = 0.95
 	crown_mesh_second.height = 1.9
 	crown_second.mesh = crown_mesh_second
@@ -260,6 +264,27 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 			mesh_node.material_override = grass_materials[rng.randi_range(0, grass_materials.size() - 1)]
 			tuft.add_child(mesh_node)
 		parent.add_child(tuft)
+	for plant_index in range(150):
+		var plant := Node3D.new()
+		plant.position = Vector3(rng.randf_range(-56, 56), 0.0, rng.randf_range(-56, 56))
+		plant.rotation.y = rng.randf_range(0.0, TAU)
+		var leaf_material := StandardMaterial3D.new()
+		leaf_material.albedo_color = [Color(0.16, 0.34, 0.14), Color(0.24, 0.43, 0.18), Color(0.36, 0.48, 0.20)][rng.randi_range(0, 2)]
+		leaf_material.roughness = 1.0
+		for leaf_index in range(5):
+			var leaf := MeshInstance3D.new()
+			var leaf_mesh := SphereMesh.new()
+			leaf_mesh.radial_segments = 18
+			leaf_mesh.rings = 12
+			leaf_mesh.radius = rng.randf_range(0.12, 0.22)
+			leaf_mesh.height = leaf_mesh.radius * 1.7
+			leaf.mesh = leaf_mesh
+			leaf.position = Vector3(rng.randf_range(-0.22, 0.22), rng.randf_range(0.12, 0.42), rng.randf_range(-0.22, 0.22))
+			leaf.rotation_degrees.z = rng.randf_range(-45.0, 45.0)
+			leaf.scale = Vector3(0.7, 1.0, 1.35)
+			leaf.material_override = leaf_material
+			plant.add_child(leaf)
+		parent.add_child(plant)
 	for i in range(95):
 		var rock := MeshInstance3D.new()
 		var rock_mesh := SphereMesh.new()
