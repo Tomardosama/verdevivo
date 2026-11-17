@@ -158,6 +158,8 @@ func _build_world() -> void:
 func _create_tree(parent: Node3D, location: Vector3) -> void:
 	var tree := Node3D.new()
 	tree.position = location
+	var tree_scale := randf_range(0.88, 1.22)
+	tree.scale = Vector3(tree_scale, tree_scale, tree_scale)
 	parent.add_child(tree)
 	var trunk := MeshInstance3D.new()
 	var trunk_mesh := CylinderMesh.new()
@@ -266,7 +268,7 @@ func _spawn_trash() -> void:
 					band_mesh.inner_radius = 0.105
 					band_mesh.outer_radius = 0.125
 					bottle_band.mesh = band_mesh
-					bottle_band.position.y = -0.08
+					bottle_band.position.y = 0.17
 					bottle_band.material_override = _detail_material(Color(0.95, 0.82, 0.22))
 					trash.add_child(bottle_band)
 				1:
@@ -325,9 +327,10 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 	var rock_material := StandardMaterial3D.new()
 	rock_material.albedo_color = Color(0.34, 0.36, 0.32)
 	rock_material.roughness = 1.0
-	for i in range(360):
+	for i in range(324):
 		var tuft := Node3D.new()
-		tuft.position = Vector3(rng.randf_range(-57, 57), 0.0, rng.randf_range(-57, 57))
+		var grass_center := Vector3(rng.randf_range(-52, 52), 0.0, rng.randf_range(-52, 52))
+		tuft.position = grass_center + Vector3(rng.randf_range(-1.6, 1.6), 0.0, rng.randf_range(-1.6, 1.6))
 		var blade_count := rng.randi_range(3, 5)
 		for blade in range(blade_count):
 			var mesh_node := MeshInstance3D.new()
@@ -339,7 +342,7 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 			mesh_node.material_override = grass_materials[rng.randi_range(0, grass_materials.size() - 1)]
 			tuft.add_child(mesh_node)
 		parent.add_child(tuft)
-	for plant_index in range(180):
+	for plant_index in range(135):
 		var plant := Node3D.new()
 		plant.position = Vector3(rng.randf_range(-56, 56), 0.0, rng.randf_range(-56, 56))
 		var leaf_material := StandardMaterial3D.new()
@@ -357,7 +360,19 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 			leaf.material_override = leaf_material
 			plant.add_child(leaf)
 		parent.add_child(plant)
-	for big_rock_index in range(24):
+		if rng.randf() < 0.22:
+			var berry_material := _detail_material(Color(0.72, 0.12, 0.16))
+			for berry_index in range(rng.randi_range(3, 6)):
+				var berry := MeshInstance3D.new()
+				var berry_mesh := SphereMesh.new()
+				berry_mesh.radial_segments = 16
+				berry_mesh.rings = 10
+				berry_mesh.radius = 0.055
+				berry.mesh = berry_mesh
+				berry.position = plant.position + Vector3(rng.randf_range(-0.22, 0.22), rng.randf_range(0.18, 0.42), rng.randf_range(-0.22, 0.22))
+				berry.material_override = berry_material
+				parent.add_child(berry)
+	for big_rock_index in range(16):
 		var boulder := MeshInstance3D.new()
 		var boulder_mesh := SphereMesh.new()
 		boulder_mesh.radial_segments = 32
@@ -373,9 +388,9 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 		boulder.scale = Vector3(rng.randf_range(1.0, 1.5), rng.randf_range(0.65, 0.95), rng.randf_range(1.0, 1.4))
 		boulder.material_override = rock_material
 		parent.add_child(boulder)
-		if boulder_mesh.radius >= 1.8:
+		if boulder_mesh.radius >= 1.1:
 			_add_box_collision(parent, boulder.position + Vector3(0.0, boulder_mesh.height * 0.18, 0.0), Vector3(boulder_mesh.radius * 1.55, boulder_mesh.height * 0.52, boulder_mesh.radius * 1.55))
-	for i in range(95):
+	for i in range(64):
 		var rock := MeshInstance3D.new()
 		var rock_mesh := SphereMesh.new()
 		rock_mesh.radius = rng.randf_range(0.22, 0.72)
@@ -858,30 +873,45 @@ func _create_pond() -> void:
 	water_material.roughness = 0.12
 	water.material_override = water_material
 	pond.add_child(water)
-	for lily_index in range(8):
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 62381 + prestige_count
+	var lily_positions: Array[Vector3] = []
+	var attempts := 0
+	while lily_positions.size() < 4 and attempts < 80:
+		attempts += 1
+		var candidate := Vector3(rng.randf_range(-3.65, 3.65), 0.08, rng.randf_range(-3.65, 3.65))
+		if candidate.length() > 4.55 or candidate.length() < 1.15:
+			continue
+		var spaced := true
+		for existing in lily_positions:
+			if candidate.distance_to(existing) < 1.65:
+				spaced = false
+				break
+		if spaced:
+			lily_positions.append(candidate)
+	for lily_index in range(lily_positions.size()):
 		var lily := MeshInstance3D.new()
 		var lily_mesh := CylinderMesh.new()
 		lily_mesh.top_radius = 0.62
 		lily_mesh.bottom_radius = 0.62
 		lily_mesh.height = 0.06
 		lily.mesh = lily_mesh
-		var angle := TAU * float(lily_index) / 8.0
-		lily.position = Vector3(cos(angle) * 3.0, 0.08, sin(angle) * 3.0)
+		lily.position = lily_positions[lily_index]
+		lily.rotation.y = rng.randf_range(0.0, TAU)
 		var lily_material := StandardMaterial3D.new()
 		lily_material.albedo_color = Color(0.20, 0.48, 0.25)
 		lily.material_override = lily_material
 		pond.add_child(lily)
-		if lily_index == 2:
+		if lily_index == 0:
 			var frog := MeshInstance3D.new()
 			var frog_mesh := SphereMesh.new()
-			frog_mesh.radial_segments = 24
-			frog_mesh.rings = 16
+			frog_mesh.radial_segments = 32
+			frog_mesh.rings = 20
 			frog_mesh.radius = 0.18
 			frog_mesh.height = 0.22
 			frog.mesh = frog_mesh
 			frog.position = lily.position + Vector3(0.0, 0.16, 0.0)
-			var frog_material := StandardMaterial3D.new()
-			frog_material.albedo_color = Color(0.28, 0.55, 0.22)
+			var frog_material := _detail_material(Color(0.28, 0.55, 0.22))
 			frog.material_override = frog_material
 			pond.add_child(frog)
 			var eye_material := _detail_material(Color(0.025, 0.022, 0.018))
@@ -896,6 +926,16 @@ func _create_pond() -> void:
 				frog_eye.position = frog.position + Vector3(eye_side * 0.085, 0.055, -0.105)
 				frog_eye.material_override = eye_material
 				pond.add_child(frog_eye)
+			for leg_side in [-1.0, 1.0]:
+				var rear_leg := MeshInstance3D.new()
+				var leg_mesh := CapsuleMesh.new()
+				leg_mesh.radius = 0.055
+				leg_mesh.height = 0.27
+				rear_leg.mesh = leg_mesh
+				rear_leg.position = frog.position + Vector3(leg_side * 0.19, -0.045, 0.13)
+				rear_leg.rotation.z = leg_side * -0.65
+				rear_leg.material_override = frog_material
+				pond.add_child(rear_leg)
 
 func _create_clouds() -> void:
 	var rng := RandomNumberGenerator.new()
