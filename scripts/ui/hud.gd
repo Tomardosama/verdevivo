@@ -241,7 +241,7 @@ func update_skill_status(level: int, points: int, levels: Dictionary) -> void:
 	if skill_status_label:
 		skill_status_label.text = "Nivel %d · %d puntos disponibles\nAgilidad %d · Bolsa %d · Combo %d · Imán %d" % [level, points, int(levels.get("agility", 0)), int(levels.get("capacity", 0)), int(levels.get("combo", 0)), int(levels.get("magnet", 0))]
 
-func _toggle_skills() -> void:
+func toggle_skills() -> void:
 	skill_panel.visible = not skill_panel.visible
 	stats_panel.visible = false
 	bestiary_panel.visible = false
@@ -250,6 +250,28 @@ func _toggle_skills() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _toggle_skills() -> void:
+	toggle_skills()
+	return
+	# legacy handler
+	stats_panel.visible = false
+	bestiary_panel.visible = false
+	menu_panel.visible = false
+	if skill_panel.visible:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func show_shop(visible: bool) -> void:
+	shop_open = visible
+	shop_panel.visible = visible
+	if visible:
+		skill_panel.visible = false
+		bestiary_panel.visible = false
+		stats_panel.visible = false
+		menu_panel.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if visible else Input.MOUSE_MODE_CAPTURED
 
 func set_upgrade_access(enabled: bool) -> void:
 	for button in upgrade_buttons:
