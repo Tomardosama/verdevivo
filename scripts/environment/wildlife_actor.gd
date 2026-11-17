@@ -16,6 +16,7 @@ var animation_clock: float = 0.0
 var base_height: float = 0.0
 
 func _ready() -> void:
+	add_to_group("wildlife")
 	origin = global_position
 	base_height = position.y
 	_build_creature()
