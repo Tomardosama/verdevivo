@@ -446,6 +446,8 @@ func _create_upgrade_kiosk() -> void:
 func _is_clear_location(location: Vector3, clearance: float) -> bool:
 	if location.length() < 8.0:
 		return false
+	if Vector2(location.x + 18.0, location.z + 20.0).length() < 8.0:
+		return false
 	for reserved in reserved_positions:
 		if Vector2(location.x, location.z).distance_to(Vector2(reserved.x, reserved.z)) < clearance:
 			return false
