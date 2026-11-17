@@ -6,6 +6,7 @@ signal deposit_requested
 signal trash_collected(value: int)
 signal shop_requested
 signal skill_requested
+signal sleep_requested
 
 @export_group("Movement")
 @export var walk_speed: float = 5.0
@@ -60,6 +61,8 @@ func _create_input_actions() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
+		if _try_sleep():
+			return
 		if _try_open_shop():
 			suppress_deposit_input = true
 			return
@@ -87,6 +90,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			)
 
 func _physics_process(delta: float) -> void:
+	if Input.mouse_mode == Input.MOUSE_MODE_VISIBLE and not get_tree().get_first_node_in_group("upgrade_shop") == null:
+		pass
 	var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = 5.2
@@ -108,9 +113,16 @@ func _physics_process(delta: float) -> void:
 
 func _try_open_shop() -> bool:
 	for shop in get_tree().get_nodes_in_group("upgrade_shop"):
-		if shop is Node3D and global_position.distance_to(shop.global_position) <= 4.5:
+		if shop is Node3D and global_position.distance_to(shop.global_position) <= 3.0:
 			shop_requested.emit()
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			return true
+	return false
+
+func _try_sleep() -> bool:
+	for bed in get_tree().get_nodes_in_group("sleep_bed"):
+		if bed is Node3D and global_position.distance_to(bed.global_position) <= 3.0:
+			sleep_requested.emit()
 			return true
 	return false
 
