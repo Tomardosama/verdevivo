@@ -23,7 +23,7 @@ var bestiary_panel: PanelContainer
 var bestiary_list: VBoxContainer
 var stats_panel: PanelContainer
 var menu_panel: PanelContainer
-var shop_panel: PanelContainer
+var shop_panel: Control
 var shop_open: bool = false
 var skill_panel: PanelContainer
 var skill_status_label: Label
