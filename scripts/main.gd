@@ -161,6 +161,8 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 	parent.add_child(tree)
 	var trunk := MeshInstance3D.new()
 	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.radial_segments = 48
+	trunk_mesh.rings = 8
 	trunk_mesh.top_radius = 0.22
 	trunk_mesh.bottom_radius = 0.34
 	trunk_mesh.height = 2.4
@@ -173,6 +175,8 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 	_add_box_collision(tree, Vector3(0, 1.4, 0), Vector3(0.72, 2.8, 0.72))
 	var crown := MeshInstance3D.new()
 	var crown_mesh := SphereMesh.new()
+	crown_mesh.radial_segments = 64
+	crown_mesh.rings = 40
 	crown_mesh.radius = 1.35
 	crown_mesh.height = 2.7
 	crown.mesh = crown_mesh
@@ -184,6 +188,8 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 	tree.add_child(crown)
 	var crown_second := MeshInstance3D.new()
 	var crown_mesh_second := SphereMesh.new()
+	crown_mesh_second.radial_segments = 64
+	crown_mesh_second.rings = 40
 	crown_mesh_second.radius = 0.95
 	crown_mesh_second.height = 1.9
 	crown_second.mesh = crown_mesh_second
@@ -343,7 +349,7 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 		boulder.material_override = rock_material
 		parent.add_child(boulder)
 		if boulder_mesh.radius >= 1.8:
-			_add_box_collision(parent, boulder.position, Vector3(boulder_mesh.radius * 1.8, boulder_mesh.radius * 1.1, boulder_mesh.radius * 1.8))
+			_add_box_collision(parent, boulder.position + Vector3(0.0, boulder_mesh.height * 0.18, 0.0), Vector3(boulder_mesh.radius * 1.55, boulder_mesh.height * 0.52, boulder_mesh.radius * 1.55))
 	for i in range(95):
 		var rock := MeshInstance3D.new()
 		var rock_mesh := SphereMesh.new()
@@ -433,6 +439,7 @@ func _spawn_station() -> void:
 	ring.material_override = material
 	station.add_child(ring)
 	var station_sign := Label3D.new()
+	station_sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	station_sign.text = "RECICLAJE\n[E]"
 	station_sign.position.y = 1.6
 	station_sign.font_size = 48
@@ -480,6 +487,7 @@ func _create_upgrade_kiosk() -> void:
 		post.material_override = wood
 		kiosk.add_child(post)
 	var label := Label3D.new()
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.text = "TIENDA DE MEJORAS\n[E]"
 	label.position.y = 2.35
 	label.font_size = 34
@@ -551,6 +559,7 @@ func _create_sleep_hut() -> void:
 	bed_shape.shape = bed_sphere
 	bed_marker.add_child(bed_shape)
 	var sign := Label3D.new()
+	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sign.text = "DESCANSAR\n[E]"
 	sign.position = Vector3(0, 2.0, -1.55)
 	sign.font_size = 32
@@ -763,6 +772,7 @@ func _add_player_xp(amount: int) -> void:
 		skill_points += 1
 		next_level_xp = player_level * 30
 		if hud:
+			hud.notify_level_up(player_level)
 			hud.show_message("¡Nivel %d! Ganaste 1 punto de habilidad." % player_level)
 	if hud:
 		hud.update_skill_status(player_level, skill_points, skill_levels)
@@ -831,6 +841,18 @@ func _create_pond() -> void:
 			frog_material.albedo_color = Color(0.28, 0.55, 0.22)
 			frog.material_override = frog_material
 			pond.add_child(frog)
+			var eye_material := _detail_material(Color(0.025, 0.022, 0.018))
+			for eye_side in [-1.0, 1.0]:
+				var frog_eye := MeshInstance3D.new()
+				var eye_mesh := SphereMesh.new()
+				eye_mesh.radial_segments = 24
+				eye_mesh.rings = 16
+				eye_mesh.radius = 0.035
+				eye_mesh.height = 0.07
+				frog_eye.mesh = eye_mesh
+				frog_eye.position = frog.position + Vector3(eye_side * 0.085, 0.055, -0.105)
+				frog_eye.material_override = eye_material
+				pond.add_child(frog_eye)
 
 func _create_clouds() -> void:
 	var rng := RandomNumberGenerator.new()
