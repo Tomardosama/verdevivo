@@ -9,29 +9,53 @@ var origin: Vector3
 var target: Vector3
 var wander_timer: float = 0.0
 var body: MeshInstance3D
+var resting_at_night: bool = false
+var home_body_position: Vector3 = Vector3.ZERO
+var home_body_rotation: Vector3 = Vector3.ZERO
 var animation_clock: float = 0.0
 var base_height: float = 0.0
 
 func _ready() -> void:
+	add_to_group("wildlife")
 	origin = global_position
 	base_height = position.y
 	_build_creature()
+	if body:
+		home_body_position = body.position
+		home_body_rotation = body.rotation
 	_choose_target()
 
 func _process(delta: float) -> void:
 	animation_clock += delta
 	wander_timer -= delta
+	if resting_at_night:
+		if body:
+			body.position = body.position.lerp(home_body_position + Vector3(0.0, -0.18, 0.0), delta * 2.0)
+			body.rotation.z = lerpf(body.rotation.z, -0.16, delta * 2.0)
+		return
 	if wander_timer <= 0.0:
 		_choose_target()
 	var direction := target - global_position
 	direction.y = 0.0
 	if direction.length() > 0.05:
 		global_position += direction.normalized() * move_speed * delta
-		look_at(Vector3(target.x, global_position.y, target.z), Vector3.UP)
+		var facing_target := Vector3(target.x, global_position.y, target.z)
+		if global_position.distance_squared_to(facing_target) > 0.0004:
+			look_at(facing_target, Vector3.UP)
 	rotation.z = sin(animation_clock * 2.0) * 0.025
 	if species_id == "bird":
 		position.y = base_height + sin(animation_clock * 3.0) * 0.08
 
+
+func set_night_resting(resting: bool) -> void:
+	resting_at_night = resting
+	if not resting:
+		if body:
+			body.position = home_body_position
+			body.rotation = home_body_rotation
+		_choose_target()
+	else:
+		wander_timer = 9999.0
 
 func _choose_target() -> void:
 	wander_timer = randf_range(2.0, 5.0)
@@ -50,6 +74,13 @@ func _build_creature() -> void:
 
 func _part(parent: Node3D, mesh: Mesh, location: Vector3, color: Color, scale_value: Vector3 = Vector3.ONE) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
+	if mesh is CylinderMesh:
+		(mesh as CylinderMesh).radial_segments = 32
+		(mesh as CylinderMesh).rings = 6
+	if mesh is SphereMesh:
+		var sphere := mesh as SphereMesh
+		sphere.radial_segments = 48
+		sphere.rings = 32
 	node.mesh = mesh
 	node.position = location
 	node.scale = scale_value
@@ -77,6 +108,10 @@ func _build_fox() -> void:
 	var orange := Color(0.78, 0.32, 0.10)
 	var white := Color(0.92, 0.84, 0.68)
 	_part(self, SphereMesh.new(), Vector3(0, 0.62, 0), orange, Vector3(0.42, 0.34, 0.72))
+	_part(self, SphereMesh.new(), Vector3(0, 0.54, 0.02), white, Vector3(0.25, 0.18, 0.48))
+	for leg_side in [-1.0, 1.0]:
+		for leg_z in [-0.34, 0.28]:
+			_part(self, CylinderMesh.new(), Vector3(leg_side * 0.23, 0.27, leg_z), orange, Vector3(0.075, 0.62, 0.075))
 	_part(self, SphereMesh.new(), Vector3(0, 0.78, -0.55), orange, Vector3(0.3, 0.3, 0.32))
 	_part(self, SphereMesh.new(), Vector3(0, 0.63, 0.72), white, Vector3(0.2, 0.2, 0.55))
 	for side in [-1.0, 1.0]:
@@ -94,10 +129,15 @@ func _build_fox() -> void:
 	_part(self, tail, Vector3(0.0, 0.58, 0.85), orange, Vector3(0.7, 0.7, 1.8))
 
 func _build_deer() -> void:
-	var tan := Color(0.55, 0.36, 0.20)
+	var coat_tan := Color(0.55, 0.36, 0.20)
 	var dark := Color(0.25, 0.16, 0.1)
-	_part(self, SphereMesh.new(), Vector3(0, 1.0, 0), tan, Vector3(0.42, 0.48, 0.78))
-	_part(self, SphereMesh.new(), Vector3(0, 1.35, -0.62), tan, Vector3(0.25, 0.32, 0.28))
+	_part(self, SphereMesh.new(), Vector3(0, 1.0, 0), coat_tan, Vector3(0.42, 0.48, 0.78))
+	var cream := Color(0.86, 0.79, 0.66)
+	_part(self, SphereMesh.new(), Vector3(0, 0.88, 0.12), cream, Vector3(0.28, 0.28, 0.58))
+	_part(self, SphereMesh.new(), Vector3(0, 1.22, -0.84), cream, Vector3(0.14, 0.12, 0.18))
+	for spot_index in range(7):
+		_part(self, SphereMesh.new(), Vector3(randf_range(-0.3, 0.3), randf_range(1.05, 1.34), randf_range(-0.25, 0.3)), cream, Vector3(0.035, 0.025, 0.035))
+	_part(self, SphereMesh.new(), Vector3(0, 1.35, -0.62), coat_tan, Vector3(0.25, 0.32, 0.28))
 	for side in [-1.0, 1.0]:
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 0.45, -0.32), dark, Vector3(0.08, 1.0, 0.08))
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 1.7, -0.62), dark, Vector3(0.035, 0.55, 0.035))
