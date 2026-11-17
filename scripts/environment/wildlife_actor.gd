@@ -74,10 +74,13 @@ func _build_creature() -> void:
 
 func _part(parent: Node3D, mesh: Mesh, location: Vector3, color: Color, scale_value: Vector3 = Vector3.ONE) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
+	if mesh is CylinderMesh:
+		(mesh as CylinderMesh).radial_segments = 32
+		(mesh as CylinderMesh).rings = 6
 	if mesh is SphereMesh:
 		var sphere := mesh as SphereMesh
-		sphere.radial_segments = 32
-		sphere.rings = 20
+		sphere.radial_segments = 48
+		sphere.rings = 32
 	node.mesh = mesh
 	node.position = location
 	node.scale = scale_value
