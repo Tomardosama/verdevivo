@@ -161,43 +161,85 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 	var tree_scale := randf_range(0.88, 1.22)
 	tree.scale = Vector3(tree_scale, tree_scale, tree_scale)
 	parent.add_child(tree)
+
+	# Tronco ligeramente cónico y raíces visibles para evitar la silueta de cilindro simple.
 	var trunk := MeshInstance3D.new()
 	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.radial_segments = 48
+	trunk_mesh.radial_segments = 24
 	trunk_mesh.rings = 8
-	trunk_mesh.top_radius = 0.22
-	trunk_mesh.bottom_radius = 0.34
-	trunk_mesh.height = 2.4
+	trunk_mesh.top_radius = 0.17
+	trunk_mesh.bottom_radius = 0.36
+	trunk_mesh.height = 2.85
 	trunk.mesh = trunk_mesh
-	trunk.position.y = 1.2
+	trunk.position.y = 1.42
 	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color(0.28, 0.16, 0.09)
+	bark.albedo_color = Color(0.24 + randf() * 0.07, 0.13 + randf() * 0.035, 0.075 + randf() * 0.025)
+	bark.roughness = 0.96
 	trunk.material_override = bark
 	tree.add_child(trunk)
 	_add_box_collision(tree, Vector3(0, 1.4, 0), Vector3(0.72, 2.8, 0.72))
-	var crown := MeshInstance3D.new()
-	var crown_mesh := SphereMesh.new()
-	crown_mesh.radial_segments = 64
-	crown_mesh.rings = 40
-	crown_mesh.radius = 1.35
-	crown_mesh.height = 2.7
-	crown.mesh = crown_mesh
-	crown.position.y = 3.0
-	var leaves := StandardMaterial3D.new()
-	leaves.albedo_color = Color(0.10 + randf() * 0.08, 0.27 + randf() * 0.12, 0.12 + randf() * 0.07)
-	leaves.roughness = 1.0
-	crown.material_override = leaves
-	tree.add_child(crown)
-	var crown_second := MeshInstance3D.new()
-	var crown_mesh_second := SphereMesh.new()
-	crown_mesh_second.radial_segments = 64
-	crown_mesh_second.rings = 40
-	crown_mesh_second.radius = 0.95
-	crown_mesh_second.height = 1.9
-	crown_second.mesh = crown_mesh_second
-	crown_second.position = Vector3(0.65, 3.25, 0.15)
-	crown_second.material_override = leaves
-	tree.add_child(crown_second)
+
+	for root_index in range(4):
+		var root := MeshInstance3D.new()
+		var root_mesh := CylinderMesh.new()
+		root_mesh.radial_segments = 12
+		root_mesh.top_radius = 0.045
+		root_mesh.bottom_radius = 0.19
+		root_mesh.height = 0.92
+		root.mesh = root_mesh
+		root.position = Vector3(0, 0.28, 0)
+		root.rotation_degrees.y = float(root_index) * 90.0
+		root.rotation_degrees.z = 48.0 if root_index % 2 == 0 else -48.0
+		root.material_override = bark
+		tree.add_child(root)
+
+	# Ramas que nacen del tronco y se integran bajo la copa.
+	for branch_index in range(3):
+		var branch := MeshInstance3D.new()
+		var branch_mesh := CylinderMesh.new()
+		branch_mesh.radial_segments = 12
+		branch_mesh.top_radius = 0.035
+		branch_mesh.bottom_radius = 0.105
+		branch_mesh.height = 1.25
+		branch.mesh = branch_mesh
+		branch.position = Vector3(0, 1.75 + float(branch_index) * 0.22, 0)
+		branch.rotation_degrees = Vector3(22.0 * float(branch_index - 1), 0.0, -38.0 + float(branch_index) * 38.0)
+		branch.material_override = bark
+		tree.add_child(branch)
+
+	# Copa compuesta por volúmenes irregulares: evita el aspecto de una esfera perfecta.
+	var foliage_palette := [
+		Color(0.075, 0.22, 0.105),
+		Color(0.105, 0.29, 0.125),
+		Color(0.15, 0.34, 0.15),
+		Color(0.19, 0.38, 0.17)
+	]
+	var foliage_materials: Array[StandardMaterial3D] = []
+	for foliage_color in foliage_palette:
+		var foliage_material := StandardMaterial3D.new()
+		foliage_material.albedo_color = foliage_color
+		foliage_material.roughness = 1.0
+		foliage_material.cull_mode = BaseMaterial3D.CULL_BACK
+		foliage_materials.append(foliage_material)
+
+	for cluster_index in range(11):
+		var cluster := MeshInstance3D.new()
+		var cluster_mesh := SphereMesh.new()
+		cluster_mesh.radial_segments = 32
+		cluster_mesh.rings = 20
+		cluster_mesh.radius = randf_range(0.72, 1.12)
+		cluster_mesh.height = cluster_mesh.radius * randf_range(1.25, 1.75)
+		cluster.mesh = cluster_mesh
+		if cluster_index == 0:
+			cluster.position = Vector3(0.0, 3.35, 0.0)
+		else:
+			var angle := TAU * float(cluster_index - 1) / 10.0 + randf_range(-0.22, 0.22)
+			var ring_radius := randf_range(0.55, 1.05)
+			cluster.position = Vector3(cos(angle) * ring_radius, randf_range(2.75, 3.75), sin(angle) * ring_radius)
+		cluster.scale = Vector3(randf_range(0.88, 1.18), randf_range(0.82, 1.16), randf_range(0.88, 1.2))
+		cluster.material_override = foliage_materials[randi_range(0, foliage_materials.size() - 1)]
+		tree.add_child(cluster)
+
 	tree.rotation.y = randf_range(0.0, TAU)
 
 func _spawn_player() -> void:
