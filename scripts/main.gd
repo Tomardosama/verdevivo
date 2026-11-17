@@ -207,11 +207,14 @@ func _spawn_player() -> void:
 	player.trash_collected.connect(_on_trash_collected)
 	player.shop_requested.connect(_open_shop)
 	player.sleep_requested.connect(_start_new_day)
+	player.pause_requested.connect(_on_pause_requested)
 
 func _spawn_trash() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 90317 + prestige_count
-	var target_count := maxi(starting_trash_count, 48)
+	var base_target_count := maxi(starting_trash_count, 48)
+	var trash_mound_count := 50
+	var target_count := base_target_count + trash_mound_count
 	var first_remaining := clampi(collected_trash, 0, target_count)
 	var type_names := ["Botella plastica", "Lata de aluminio", "Papel y carton", "Envase de vidrio"]
 	var rewards := [5, 8, 6, 12]
@@ -220,8 +223,14 @@ func _spawn_trash() -> void:
 		var trash := TRASH_SCENE.instantiate() as TrashPickup
 		var location := Vector3.ZERO
 		for attempt in range(60):
-			location = Vector3(rng.randf_range(-49.0, 49.0), 0.0, rng.randf_range(-49.0, 49.0))
-			if location.length() > 8.0 and _is_clear_location(location, 2.0):
+			if i >= base_target_count:
+				var mound_index := int((i - base_target_count) / 10)
+				var mound_angle := TAU * float(mound_index) / 5.0
+				var mound_center := Vector3(cos(mound_angle) * 34.0, 0.0, sin(mound_angle) * 34.0)
+				location = mound_center + Vector3(rng.randf_range(-1.15, 1.15), 0.0, rng.randf_range(-0.65, 0.65))
+			else:
+				location = Vector3(rng.randf_range(-49.0, 49.0), 0.0, rng.randf_range(-49.0, 49.0))
+			if location.length() > 8.0 and (i >= base_target_count or _is_clear_location(location, 2.0)):
 				break
 		reserved_positions.append(location)
 		trash.position = location
@@ -608,6 +617,7 @@ func _create_hud() -> void:
 	hud = HUD_SCRIPT.new() as TRushHUD
 	add_child(hud)
 	hud.upgrade_requested.connect(_buy_upgrade)
+	hud.options_changed.connect(_apply_options)
 	hud.prestige_requested.connect(_perform_prestige)
 	hud.skill_requested.connect(_spend_skill_point)
 	player.skill_requested.connect(hud.toggle_skills)
@@ -617,6 +627,23 @@ func _create_hud() -> void:
 	hud.update_skill_status(player_level, skill_points, skill_levels)
 	hud.update_upgrade_prices(_all_upgrade_costs(), upgrades)
 	_refresh_bestiary()
+
+func _on_pause_requested() -> void:
+	if hud:
+		hud.toggle_pause()
+
+func _apply_options(brightness: float, music_volume: float, effects_volume: float, fov: float) -> void:
+	if world_environment and world_environment.environment:
+		world_environment.environment.ambient_light_energy = 0.65 * brightness
+		world_environment.environment.tonemap_exposure = brightness
+	if player and player.game_camera:
+		player.game_camera.fov = fov
+	var music_bus := AudioServer.get_bus_index("Music")
+	if music_bus >= 0:
+		AudioServer.set_bus_volume_linear(music_bus, music_volume)
+	var sfx_bus := AudioServer.get_bus_index("SFX")
+	if sfx_bus >= 0:
+		AudioServer.set_bus_volume_linear(sfx_bus, effects_volume)
 
 func _on_inventory_changed(current: int, capacity: int) -> void:
 	if hud:
