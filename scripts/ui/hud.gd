@@ -1,6 +1,8 @@
 extends CanvasLayer
 class_name TRushHUD
 
+signal options_changed(brightness: float, music_volume: float, effects_volume: float, fov: float)
+signal pause_state_changed(is_paused: bool)
 signal upgrade_requested(upgrade_id: String)
 signal prestige_requested
 signal skill_requested(skill_id: String)
@@ -29,12 +31,16 @@ var crosshair: Label
 var achievement_count: int = 0
 var message_time_left: float = 0.0
 var shop_obscured_controls: Array[Control] = []
+var pause_panel: PanelContainer
+var is_paused: bool = false
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	_build_pause_menu(root)
 
 	var status_panel := _make_panel(Vector2(22, 20), Vector2(370, 190))
 	root.add_child(status_panel)
@@ -273,9 +279,72 @@ func _make_label(value: String, font_size: int, color: Color = Color(0.91, 0.95,
 	return label
 
 func _unhandled_input(event: InputEvent) -> void:
-	if shop_open and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		show_shop(false)
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if shop_open:
+			show_shop(false)
+		else:
+			toggle_pause()
 		get_viewport().set_input_as_handled()
+
+func toggle_pause() -> void:
+	is_paused = not is_paused
+	if pause_panel:
+		pause_panel.visible = is_paused
+	get_tree().paused = is_paused
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if is_paused else Input.MOUSE_MODE_CAPTURED
+	pause_state_changed.emit(is_paused)
+
+func _build_pause_menu(root: Control) -> void:
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0.015, 0.025, 0.02, 0.78)
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(backdrop)
+	pause_panel = _make_panel(Vector2.ZERO, Vector2(460, 430))
+	pause_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	root.add_child(pause_panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	pause_panel.add_child(box)
+	box.add_child(_make_label("TRUSH · OPCIONES", 24))
+	var brightness := HSlider.new()
+	brightness.min_value = 0.5
+	brightness.max_value = 1.6
+	brightness.step = 0.05
+	brightness.value = 1.0
+	box.add_child(_make_label("Brillo", 15))
+	box.add_child(brightness)
+	var music := HSlider.new()
+	music.min_value = 0.0
+	music.max_value = 1.0
+	music.step = 0.05
+	music.value = 0.8
+	box.add_child(_make_label("Volumen de música", 15))
+	box.add_child(music)
+	var effects := HSlider.new()
+	effects.min_value = 0.0
+	effects.max_value = 1.0
+	effects.step = 0.05
+	effects.value = 0.9
+	box.add_child(_make_label("Volumen de efectos", 15))
+	box.add_child(effects)
+	var fov := HSlider.new()
+	fov.min_value = 65.0
+	fov.max_value = 105.0
+	fov.step = 1.0
+	fov.value = 80.0
+	box.add_child(_make_label("Campo de visión (FOV)", 15))
+	box.add_child(fov)
+	var apply := func(_value: float = 0.0): options_changed.emit(brightness.value, music.value, effects.value, fov.value)
+	brightness.value_changed.connect(apply)
+	music.value_changed.connect(apply)
+	effects.value_changed.connect(apply)
+	fov.value_changed.connect(apply)
+	var resume := _make_button("VOLVER AL JUEGO · ESC")
+	resume.pressed.connect(toggle_pause)
+	box.add_child(resume)
+	backdrop.visible = false
+	pause_panel.visible = false
 
 func _process(delta: float) -> void:
 	if message_time_left > 0.0:
