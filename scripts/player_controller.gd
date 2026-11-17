@@ -61,6 +61,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		shop_preview_changed.emit(false)
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E:
