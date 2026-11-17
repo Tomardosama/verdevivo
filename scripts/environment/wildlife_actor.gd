@@ -27,7 +27,9 @@ func _process(delta: float) -> void:
 	direction.y = 0.0
 	if direction.length() > 0.05:
 		global_position += direction.normalized() * move_speed * delta
-		look_at(Vector3(target.x, global_position.y, target.z), Vector3.UP)
+		var facing_target := Vector3(target.x, global_position.y, target.z)
+		if global_position.distance_squared_to(facing_target) > 0.0004:
+			look_at(facing_target, Vector3.UP)
 	rotation.z = sin(animation_clock * 2.0) * 0.025
 	if species_id == "bird":
 		position.y = base_height + sin(animation_clock * 3.0) * 0.08
@@ -50,6 +52,10 @@ func _build_creature() -> void:
 
 func _part(parent: Node3D, mesh: Mesh, location: Vector3, color: Color, scale_value: Vector3 = Vector3.ONE) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
+	if mesh is SphereMesh:
+		var sphere := mesh as SphereMesh
+		sphere.radial_segments = 32
+		sphere.rings = 20
 	node.mesh = mesh
 	node.position = location
 	node.scale = scale_value
@@ -77,6 +83,10 @@ func _build_fox() -> void:
 	var orange := Color(0.78, 0.32, 0.10)
 	var white := Color(0.92, 0.84, 0.68)
 	_part(self, SphereMesh.new(), Vector3(0, 0.62, 0), orange, Vector3(0.42, 0.34, 0.72))
+	_part(self, SphereMesh.new(), Vector3(0, 0.54, 0.02), white, Vector3(0.25, 0.18, 0.48))
+	for leg_side in [-1.0, 1.0]:
+		for leg_z in [-0.34, 0.28]:
+			_part(self, CylinderMesh.new(), Vector3(leg_side * 0.23, 0.27, leg_z), orange, Vector3(0.075, 0.62, 0.075))
 	_part(self, SphereMesh.new(), Vector3(0, 0.78, -0.55), orange, Vector3(0.3, 0.3, 0.32))
 	_part(self, SphereMesh.new(), Vector3(0, 0.63, 0.72), white, Vector3(0.2, 0.2, 0.55))
 	for side in [-1.0, 1.0]:
@@ -97,6 +107,11 @@ func _build_deer() -> void:
 	var tan := Color(0.55, 0.36, 0.20)
 	var dark := Color(0.25, 0.16, 0.1)
 	_part(self, SphereMesh.new(), Vector3(0, 1.0, 0), tan, Vector3(0.42, 0.48, 0.78))
+	var cream := Color(0.86, 0.79, 0.66)
+	_part(self, SphereMesh.new(), Vector3(0, 0.88, 0.12), cream, Vector3(0.28, 0.28, 0.58))
+	_part(self, SphereMesh.new(), Vector3(0, 1.22, -0.84), cream, Vector3(0.14, 0.12, 0.18))
+	for spot_index in range(7):
+		_part(self, SphereMesh.new(), Vector3(randf_range(-0.3, 0.3), randf_range(1.05, 1.34), randf_range(-0.25, 0.3)), cream, Vector3(0.035, 0.025, 0.035))
 	_part(self, SphereMesh.new(), Vector3(0, 1.35, -0.62), tan, Vector3(0.25, 0.32, 0.28))
 	for side in [-1.0, 1.0]:
 		_part(self, CylinderMesh.new(), Vector3(side * 0.2, 0.45, -0.32), dark, Vector3(0.08, 1.0, 0.08))
