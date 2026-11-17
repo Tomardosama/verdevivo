@@ -106,7 +106,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("deposit") and not suppress_deposit_input:
 		_request_deposit()
 	suppress_deposit_input = false
-	if vacuum_unlocked and Input.is_action_pressed("vacuum"):
+	if collection_enabled and vacuum_unlocked and Input.is_action_pressed("vacuum"):
 		_vacuum_collect()
 
 
