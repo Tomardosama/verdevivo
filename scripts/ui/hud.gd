@@ -283,6 +283,9 @@ func _process(delta: float) -> void:
 			var panel := get_meta("notification_panel") as PanelContainer
 			if panel:
 				panel.visible = false
+			var alert := get_meta("level_alert") as Label
+			if alert:
+				alert.visible = false
 
 func _on_upgrade_pressed(upgrade_id: String) -> void:
 	upgrade_requested.emit(upgrade_id)
