@@ -232,7 +232,7 @@ func update_progress(percent: int) -> void:
 			show_message("Logro desbloqueado: " + str(milestone["name"]))
 
 func update_phase(is_day: bool, seconds_left: int) -> void:
-	phase_label.text = "%s  %s  ·  %02d:%02d" % ["☀" if is_day else "☾", "DÍA" if is_day else "NOCHE", seconds_left / 60, seconds_left % 60]
+	phase_label.text = "%s  %s  ·  %02d:%02d" % ["☀" if is_day else "☾", "DÍA" if is_day else "NOCHE", int(seconds_left / 60.0), seconds_left % 60]
 
 func update_mission(value: String) -> void:
 	mission_label.text = "MISIÓN · " + value
@@ -263,10 +263,10 @@ func _toggle_skills() -> void:
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
-func show_shop(visible: bool) -> void:
-	shop_open = visible
-	shop_panel.visible = visible
-	if visible:
+func show_shop(is_open: bool) -> void:
+	shop_open = is_open
+	shop_panel.visible = is_open
+	if is_open:
 		skill_panel.visible = false
 		bestiary_panel.visible = false
 		stats_panel.visible = false
@@ -304,7 +304,7 @@ func _toggle_menu() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func update_stats(money: int, collected: int, prestige: int, elapsed_seconds: int) -> void:
-	stats_label.text = "Fondos acumulados: $%d\nResiduos recuperados: %d\nPrestigios: %d\nTiempo de sesión: %02d:%02d" % [money, collected, prestige, elapsed_seconds / 60, elapsed_seconds % 60]
+	stats_label.text = "Fondos acumulados: $%d\nResiduos recuperados: %d\nPrestigios: %d\nTiempo de sesión: %02d:%02d" % [money, collected, prestige, int(elapsed_seconds / 60.0), elapsed_seconds % 60]
 
 func show_message(message: String) -> void:
 	message_label.text = message
