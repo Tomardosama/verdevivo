@@ -109,11 +109,11 @@ func _build_world() -> void:
 	ground_material.albedo_color = Color(0.20, 0.32, 0.19)
 	# Claro central y cuatro brazos: el terreno deja de ser un cuadrado.
 	var sections := [
-		[Vector3(0, 0, 0), Vector3(24, 1, 24)],
-		[Vector3(0, 0, -25), Vector3(16, 1, 30)],
-		[Vector3(0, 0, 25), Vector3(16, 1, 30)],
-		[Vector3(25, 0, 0), Vector3(30, 1, 16)],
-		[Vector3(-25, 0, 0), Vector3(30, 1, 16)]
+		[Vector3(0, 0, 0), Vector3(24, 1, 24), 0.0],
+		[Vector3(19, 0, -19), Vector3(34, 1, 16), -PI / 4.0],
+		[Vector3(19, 0, 19), Vector3(34, 1, 16), PI / 4.0],
+		[Vector3(-19, 0, 19), Vector3(34, 1, 16), 3.0 * PI / 4.0],
+		[Vector3(-19, 0, -19), Vector3(34, 1, 16), -3.0 * PI / 4.0]
 	]
 	for section in sections:
 		var section_mesh := MeshInstance3D.new()
@@ -121,6 +121,7 @@ func _build_world() -> void:
 		section_box.size = section[1]
 		section_mesh.mesh = section_box
 		section_mesh.position = section[0]
+		section_mesh.rotation.y = float(section[2])
 		section_mesh.material_override = ground_material
 		ground.add_child(section_mesh)
 		var section_collision := CollisionShape3D.new()
@@ -128,6 +129,7 @@ func _build_world() -> void:
 		collision_box.size = section[1]
 		section_collision.shape = collision_box
 		section_collision.position = section[0]
+		section_collision.rotation.y = float(section[2])
 		ground.add_child(section_collision)
 
 	sun = DirectionalLight3D.new()
@@ -170,11 +172,10 @@ func _random_map_position(rng: RandomNumberGenerator, min_distance: float = 9.0,
 	var arm := rng.randi_range(0, 3)
 	var distance := rng.randf_range(min_distance, max_distance)
 	var lateral := rng.randf_range(-half_width, half_width)
-	match arm:
-		0: return Vector3(lateral, 0.0, -distance)
-		1: return Vector3(lateral, 0.0, distance)
-		2: return Vector3(distance, 0.0, lateral)
-		_: return Vector3(-distance, 0.0, lateral)
+	var angles := [-PI / 4.0, PI / 4.0, 3.0 * PI / 4.0, -3.0 * PI / 4.0]
+	var direction := Vector3(cos(angles[arm]), 0.0, sin(angles[arm]))
+	var perpendicular := Vector3(-direction.z, 0.0, direction.x)
+	return direction * distance + perpendicular * lateral
 
 func _create_tree(parent: Node3D, location: Vector3):
 	var tree := Node3D.new()
@@ -291,7 +292,7 @@ func _spawn_trash() -> void:
 		for attempt in range(60):
 			if i >= base_target_count:
 				var arm_index := int((i - base_target_count) / 13) % 4
-				var arm_center := [Vector3(0, 0, -31), Vector3(31, 0, 0), Vector3(0, 0, 31), Vector3(-31, 0, 0)][arm_index]
+				var arm_center := [Vector3(22, 0, -22), Vector3(22, 0, 22), Vector3(-22, 0, 22), Vector3(-22, 0, -22)][arm_index]
 				location = arm_center + Vector3(rng.randf_range(-5.0, 5.0), 0.0, rng.randf_range(-5.0, 5.0))
 			else:
 				var angle := rng.randf_range(0.0, TAU)
@@ -466,10 +467,10 @@ func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void
 
 func _create_zone_markers() -> void:
 	var zones := [
-		{"name": "BOSQUE PROFUNDO", "position": Vector3(0, 0, -34), "color": Color(0.45, 0.75, 0.48)},
-		{"name": "ARROYO", "position": Vector3(34, 0, 0), "color": Color(0.35, 0.68, 0.82)},
-		{"name": "VERTEDERO", "position": Vector3(0, 0, 34), "color": Color(0.78, 0.68, 0.36)},
-		{"name": "ZONA ROCOSA", "position": Vector3(-34, 0, 0), "color": Color(0.72, 0.72, 0.66)}
+		{"name": "BOSQUE PROFUNDO", "position": Vector3(-33, 0, -33), "color": Color(0.45, 0.75, 0.48)},
+		{"name": "ARROYO", "position": Vector3(33, 0, -33), "color": Color(0.35, 0.68, 0.82)},
+		{"name": "VERTEDERO", "position": Vector3(33, 0, 33), "color": Color(0.78, 0.68, 0.36)},
+		{"name": "ZONA ROCOSA", "position": Vector3(-33, 0, 33), "color": Color(0.72, 0.72, 0.66)}
 	]
 	for zone in zones:
 		var sign_root := Node3D.new()
@@ -680,7 +681,7 @@ func _start_new_day() -> void:
 func _is_clear_location(location: Vector3, clearance: float) -> bool:
 	if location.length() < 8.0:
 		return false
-	if Vector2(location.x - 28.0, location.z).length() < 7.0:
+	if Vector2(location.x - 27.0, location.z + 27.0).length() < 7.0:
 		return false
 	for reserved in reserved_positions:
 		if Vector2(location.x, location.z).distance_to(Vector2(reserved.x, reserved.z)) < clearance:
@@ -792,7 +793,7 @@ func _spawn_species_marker(species: Dictionary) -> void:
 	var actor := WILDLIFE_SCRIPT.new() as TRushWildlife
 	actor.species_id = str(species["id"])
 	if str(species["id"]) == "deer":
-		actor.position = Vector3(randf_range(-4.0, 4.0), 0.0, -29.0 + randf_range(-3.0, 3.0))
+		actor.position = Vector3(-22.0 + randf_range(-3.0, 3.0), 0.0, -22.0 + randf_range(-3.0, 3.0))
 		actor.scale = Vector3.ONE * 0.76
 	else:
 		actor.position = Vector3(randf_range(-7.0, 7.0), 0.0, randf_range(-7.0, 7.0))
@@ -935,7 +936,7 @@ func _spend_skill_point(skill_id: String = "agility") -> void:
 func _create_pond() -> void:
 	var pond := Node3D.new()
 	pond.name = "LilyPond"
-	pond.position = Vector3(28.0, 0.0, 0.0)
+	pond.position = Vector3(27.0, 0.0, -27.0)
 	add_child(pond)
 	var water := MeshInstance3D.new()
 	var water_mesh := CylinderMesh.new()
