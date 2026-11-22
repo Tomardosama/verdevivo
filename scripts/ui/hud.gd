@@ -19,6 +19,8 @@ var mission_label: Label
 var stats_label: Label
 var upgrade_buttons: Array[Button] = []
 var upgrade_ids: Array[String] = []
+var upgrade_title_labels: Array[Label] = []
+var upgrade_detail_labels: Array[Label] = []
 var upgrade_descriptions := {"speed": "Movimiento más rápido", "capacity": "+2 espacios de bolsa", "value": "Más ingresos por residuo", "range": "Mayor alcance manual", "day": "Más duración del día", "vacuum": "Amplía el radio y acelera el viaje del residuo a la boquilla", "discount": "Reduce otros costos"}
 var upgrade_names := {"speed": "Velocidad", "capacity": "Bolsa", "value": "Valor reciclado", "range": "Alcance manual", "day": "Duración del día", "vacuum": "Aspiradora", "discount": "Descuento"}
 var bestiary_panel: PanelContainer
@@ -91,37 +93,84 @@ func _ready() -> void:
 	shop_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shop_center.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(shop_center)
-	var upgrades_panel := _make_panel(Vector2.ZERO, Vector2(490, 500))
-	upgrades_panel.custom_minimum_size = Vector2(490, 500)
+	var upgrades_panel := _make_panel(Vector2.ZERO, Vector2(720, 620))
+	upgrades_panel.custom_minimum_size = Vector2(720, 620)
 	shop_center.add_child(upgrades_panel)
 	shop_center.visible = false
 	shop_panel = shop_center
 	var upgrade_box := VBoxContainer.new()
-	upgrade_box.add_theme_constant_override("separation", 6)
+	upgrade_box.add_theme_constant_override("separation", 10)
 	upgrades_panel.add_child(upgrade_box)
-	upgrade_box.add_child(_make_label("TALLER DE MEJORAS", 18))
-	upgrade_box.add_child(_make_label("Disponible durante la noche", 12, Color(0.70, 0.79, 0.72)))
+	var shop_heading := _make_label("MERCADO DEL GUARDABOSQUES", 25, Color(0.91, 0.96, 0.84))
+	upgrade_box.add_child(shop_heading)
+	upgrade_box.add_child(_make_label("Invierte lo que recuperas. Cada mejora fortalece tu próxima expedición.", 14, Color(0.70, 0.81, 0.72)))
+	var shop_section := _make_label("EQUIPAMIENTO Y MEJORAS PERMANENTES", 12, Color(0.54, 0.77, 0.58))
+	shop_section.add_theme_font_size_override("font_size", 12)
+	upgrade_box.add_child(shop_section)
+	var shop_scroll := ScrollContainer.new()
+	shop_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	shop_scroll.custom_minimum_size = Vector2(0, 360)
+	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	upgrade_box.add_child(shop_scroll)
+	var shop_items := VBoxContainer.new()
+	shop_items.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_items.add_theme_constant_override("separation", 8)
+	shop_scroll.add_child(shop_items)
 	var upgrade_data := [
-		["speed", "Velocidad", "Movimiento más rápido"],
-		["capacity", "Bolsa", "+2 unidades de capacidad"],
-		["value", "Reciclaje", "Más ingresos por residuo"],
-		["range", "Alcance", "Recogida a más distancia"],
-		["day", "Turno", "Más tiempo de trabajo"],
-		["vacuum", "Aspiradora", "Radio y velocidad de succión · F"],
-		["discount", "Ahorro", "Reduce progresivamente otros costos"]
+		["speed", "Botas de explorador", "Aumenta tu velocidad al caminar y correr."],
+		["capacity", "Mochila reforzada", "Amplía la capacidad de residuos que puedes transportar."],
+		["value", "Prensa de reciclaje", "Mejora el valor de cada entrega en la estación."],
+		["range", "Guantes de alcance", "Recoge residuos desde una distancia mayor."],
+		["day", "Jornada extendida", "Añade tiempo útil a cada día de trabajo."],
+		["vacuum", "Aspiradora ecológica", "Aumenta el radio y la velocidad de succión · F."],
+		["discount", "Convenio de suministros", "Reduce el costo de futuras mejoras."]
 	]
 	for item in upgrade_data:
-		var button := _make_button("%s  ·  %s" % [item[1], item[2]])
+		var card := PanelContainer.new()
+		card.custom_minimum_size = Vector2(0, 68)
+		var card_style := StyleBoxFlat.new()
+		card_style.bg_color = Color(0.075, 0.145, 0.105, 0.96)
+		card_style.border_color = Color(0.24, 0.39, 0.27, 0.9)
+		card_style.set_border_width_all(1)
+		card_style.set_corner_radius_all(12)
+		card_style.content_margin_left = 12
+		card_style.content_margin_right = 12
+		card_style.content_margin_top = 7
+		card_style.content_margin_bottom = 7
+		card.add_theme_stylebox_override("panel", card_style)
+		shop_items.add_child(card)
+		var card_row := HBoxContainer.new()
+		card_row.add_theme_constant_override("separation", 12)
+		card.add_child(card_row)
+		var card_copy := VBoxContainer.new()
+		card_copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card_copy.add_theme_constant_override("separation", 2)
+		card_row.add_child(card_copy)
+		var title_label := _make_label(str(item[1]), 16, Color(0.91, 0.95, 0.87))
+		card_copy.add_child(title_label)
+		var detail_label := _make_label(str(item[2]), 12, Color(0.68, 0.78, 0.69))
+		detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card_copy.add_child(detail_label)
+		var button := _make_button("MEJORAR")
+		button.custom_minimum_size = Vector2(150, 48)
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		button.pressed.connect(_on_upgrade_pressed.bind(item[0]))
-		upgrade_box.add_child(button)
+		card_row.add_child(button)
 		upgrade_buttons.append(button)
 		upgrade_ids.append(str(item[0]))
-	var shop_close_button := _make_button("CERRAR TIENDA · ESC")
+		upgrade_title_labels.append(title_label)
+		upgrade_detail_labels.append(detail_label)
+	var shop_footer := HBoxContainer.new()
+	shop_footer.add_theme_constant_override("separation", 10)
+	upgrade_box.add_child(shop_footer)
+	var shop_close_button := _make_button("VOLVER AL BOSQUE  ·  ESC")
+	shop_close_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shop_close_button.pressed.connect(func(): show_shop(false))
-	upgrade_box.add_child(shop_close_button)
-	var prestige_button := _make_button("✧  RESTAURAR BIOMA · PRESTIGIO")
+	shop_footer.add_child(shop_close_button)
+	var prestige_button := _make_button("✧  PRESTIGIO")
+	prestige_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	prestige_button.pressed.connect(func(): prestige_requested.emit())
-	upgrade_box.add_child(prestige_button)
+	shop_footer.add_child(prestige_button)
 
 	var skills_button := _make_button("ÁRBOL DE HABILIDADES · TAB")
 	skills_button.position = Vector2(20, -112)
@@ -453,9 +502,11 @@ func update_upgrade_prices(costs: Dictionary, levels: Dictionary) -> void:
 			detail = "Este nivel deja los precios un 8%% más bajos. Descuento acumulado tras comprarlo: %.1f%%." % discount_percent
 		if upgrade_id == "vacuum":
 			detail = "Radio %.1f m · Trayecto %.2f s" % [3.2 + maxf(0.0, float(current_level - 1)) * 0.85, maxf(0.08, 0.24 - maxf(0.0, float(current_level - 1)) * 0.025)]
-			upgrade_buttons[index].text = "%s · Nv.%d · %.1f m · $%d" % [display_name, current_level, 3.2 + maxf(0.0, float(current_level - 1)) * 0.85, price]
-		else:
-			upgrade_buttons[index].text = "%s  ·  Nivel %d  ·  $%d" % [display_name, current_level, price]
+		if index < upgrade_title_labels.size():
+			upgrade_title_labels[index].text = "%s  ·  NIVEL %d" % [display_name.to_upper(), current_level]
+		if index < upgrade_detail_labels.size():
+			upgrade_detail_labels[index].text = detail
+		upgrade_buttons[index].text = "MEJORAR  ·  $%d" % price
 		upgrade_buttons[index].tooltip_text = "%s. %s Precio actual: $%d." % [display_name, detail, price]
 
 func notify_level_up(level: int) -> void:
