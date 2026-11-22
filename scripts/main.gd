@@ -39,6 +39,8 @@ var reserved_positions: Array[Vector3] = []
 var shop_node: Node3D
 var sleep_hut: Node3D
 var graphics_quality: int = 1
+var autosave_elapsed: float = 0.0
+var saved_player_health: float = 100.0
 
 func _ready() -> void:
 	session_start_time = Time.get_ticks_msec() / 1000.0
@@ -61,6 +63,10 @@ func _process(delta: float) -> void:
 			is_day = false
 			_on_phase_changed()
 	notification_cooldown = maxf(0.0, notification_cooldown - delta)
+	autosave_elapsed += delta
+	if autosave_elapsed >= 20.0:
+		autosave_elapsed = 0.0
+		_save_game()
 	var duration := _current_phase_duration()
 	if not is_day and player and hud and hud.shop_open:
 		if shop_node == null or player.global_position.distance_to(shop_node.global_position) > 4.2:
@@ -266,6 +272,7 @@ func _create_tree(parent: Node3D, location: Vector3):
 
 func _spawn_player() -> void:
 	player = PLAYER_SCENE.instantiate() as TRushPlayer
+	player.current_health = clampf(saved_player_health, 1.0, player.max_health)
 	add_child(player)
 	player.global_position = Vector3(0, 1, 7)
 	player.inventory_changed.connect(_on_inventory_changed)
@@ -674,6 +681,8 @@ func _start_new_day() -> void:
 		return
 	is_day = true
 	day_time = 0.0
+	if player:
+		player.heal(35.0)
 	_on_phase_changed()
 	if hud:
 		hud.show_message("¡Nuevo día! El bosque te espera.")
@@ -876,6 +885,8 @@ func _perform_prestige() -> void:
 	await get_tree().create_timer(0.2).timeout
 	_spawn_trash()
 	money += 100 * prestige_count
+	if player:
+		player.heal(player.max_health)
 	hud.update_progress(0)
 	hud.update_money(money)
 	hud.show_message("¡Prestigio %d! Mejoras conservadas y +$%d." % [prestige_count, 100 * prestige_count])
@@ -1058,6 +1069,8 @@ func _save_game() -> void:
 	config.set_value("skills", "xp", player_xp)
 	config.set_value("skills", "level", player_level)
 	config.set_value("settings", "graphics_quality", graphics_quality)
+	if player:
+		config.set_value("player", "health", player.current_health)
 	config.save(SAVE_PATH)
 
 func _load_game() -> void:
@@ -1088,3 +1101,4 @@ func _load_game() -> void:
 	player_xp = int(config.get_value("skills", "xp", 0))
 	player_level = int(config.get_value("skills", "level", 1))
 	graphics_quality = clampi(int(config.get_value("settings", "graphics_quality", 1)), 0, 2)
+	saved_player_health = float(config.get_value("player", "health", 100.0))
