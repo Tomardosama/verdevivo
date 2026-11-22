@@ -357,6 +357,7 @@ func _build_pause_menu(root: Control) -> void:
 	quality.add_item("Alta · más sombras y detalle", 2)
 	quality.select(1)
 	box.add_child(quality)
+	set_meta("quality_option", quality)
 	var fov := HSlider.new()
 	fov.min_value = 65.0
 	fov.max_value = 105.0
@@ -411,6 +412,11 @@ func update_health(current: float, maximum: float) -> void:
 		health_bar.max_value = maxf(1.0, maximum)
 		health_bar.value = clampf(current, 0.0, maximum)
 		health_bar.modulate = Color(0.35, 0.86, 0.48) if current / maxf(1.0, maximum) > 0.5 else Color(1.0, 0.35, 0.25)
+
+func update_graphics_quality(level: int) -> void:
+	var quality := get_meta("quality_option") as OptionButton
+	if quality:
+		quality.select(clampi(level, 0, 2))
 
 func update_progress(percent: int) -> void:
 	progress_label.text = "Bosque %d%% restaurado" % percent

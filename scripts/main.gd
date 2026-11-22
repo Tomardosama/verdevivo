@@ -50,6 +50,7 @@ func _ready() -> void:
 	_create_hud()
 	_restore_unlocked_wildlife()
 	_apply_upgrades()
+	_apply_options(1.0, 0.8, 0.9, 80.0, graphics_quality)
 	_update_hud()
 
 func _process(delta: float) -> void:
@@ -690,6 +691,7 @@ func _create_hud() -> void:
 	hud = HUD_SCRIPT.new() as TRushHUD
 	add_child(hud)
 	hud.update_health(player.current_health, player.max_health)
+	hud.update_graphics_quality(graphics_quality)
 	hud.upgrade_requested.connect(_buy_upgrade)
 	hud.options_changed.connect(_apply_options)
 	hud.prestige_requested.connect(_perform_prestige)
