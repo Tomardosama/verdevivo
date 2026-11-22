@@ -38,6 +38,7 @@ var cloud_nodes: Array[Node3D] = []
 var reserved_positions: Array[Vector3] = []
 var shop_node: Node3D
 var sleep_hut: Node3D
+var graphics_quality: int = 1
 
 func _ready() -> void:
 	session_start_time = Time.get_ticks_msec() / 1000.0
@@ -103,19 +104,30 @@ func _build_world() -> void:
 	ground.name = "Ground"
 	ground.position.y = -0.5
 	add_child(ground)
-	var ground_mesh := MeshInstance3D.new()
-	var plane := BoxMesh.new()
-	plane.size = Vector3(120, 1, 120)
-	ground_mesh.mesh = plane
 	var ground_material := StandardMaterial3D.new()
 	ground_material.albedo_color = Color(0.20, 0.32, 0.19)
-	ground_mesh.material_override = ground_material
-	ground.add_child(ground_mesh)
-	var ground_shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(120, 1, 120)
-	ground_shape.shape = box
-	ground.add_child(ground_shape)
+	# Claro central y cuatro brazos: el terreno deja de ser un cuadrado.
+	var sections := [
+		[Vector3(0, 0, 0), Vector3(24, 1, 24)],
+		[Vector3(0, 0, -25), Vector3(16, 1, 30)],
+		[Vector3(0, 0, 25), Vector3(16, 1, 30)],
+		[Vector3(25, 0, 0), Vector3(30, 1, 16)],
+		[Vector3(-25, 0, 0), Vector3(30, 1, 16)]
+	]
+	for section in sections:
+		var section_mesh := MeshInstance3D.new()
+		var section_box := BoxMesh.new()
+		section_box.size = section[1]
+		section_mesh.mesh = section_box
+		section_mesh.position = section[0]
+		section_mesh.material_override = ground_material
+		ground.add_child(section_mesh)
+		var section_collision := CollisionShape3D.new()
+		var collision_box := BoxShape3D.new()
+		collision_box.size = section[1]
+		section_collision.shape = collision_box
+		section_collision.position = section[0]
+		ground.add_child(section_collision)
 
 	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48, -28, 0)
@@ -143,10 +155,8 @@ func _build_world() -> void:
 	add_child(trees)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 74129
-	for i in range(64):
-		var angle := rng.randf_range(0.0, TAU)
-		var radius := rng.randf_range(19.0, 54.0)
-		var tree_position := Vector3(cos(angle) * radius, 0, sin(angle) * radius)
+	for i in range(26):
+		var tree_position := _random_map_position(rng, 20.0, 37.0, 6.0)
 		if _is_clear_location(tree_position, 4.2):
 			_create_tree(trees, tree_position)
 			reserved_positions.append(tree_position)
@@ -155,7 +165,17 @@ func _build_world() -> void:
 	_create_pond()
 	_create_clouds()
 
-func _create_tree(parent: Node3D, location: Vector3) -> void:
+func _random_map_position(rng: RandomNumberGenerator, min_distance: float = 9.0, max_distance: float = 38.0, half_width: float = 6.0) -> Vector3:
+	var arm := rng.randi_range(0, 3)
+	var distance := rng.randf_range(min_distance, max_distance)
+	var lateral := rng.randf_range(-half_width, half_width)
+	match arm:
+		0: return Vector3(lateral, 0.0, -distance)
+		1: return Vector3(lateral, 0.0, distance)
+		2: return Vector3(distance, 0.0, lateral)
+		_: return Vector3(-distance, 0.0, lateral)
+
+func _create_tree(parent: Node3D, location: Vector3):
 	var tree := Node3D.new()
 	tree.position = location
 	var tree_scale := randf_range(0.88, 1.22)
@@ -222,11 +242,11 @@ func _create_tree(parent: Node3D, location: Vector3) -> void:
 		foliage_material.cull_mode = BaseMaterial3D.CULL_BACK
 		foliage_materials.append(foliage_material)
 
-	for cluster_index in range(11):
+	for cluster_index in range(7):
 		var cluster := MeshInstance3D.new()
 		var cluster_mesh := SphereMesh.new()
-		cluster_mesh.radial_segments = 32
-		cluster_mesh.rings = 20
+		cluster_mesh.radial_segments = 16
+		cluster_mesh.rings = 10
 		cluster_mesh.radius = randf_range(0.72, 1.12)
 		cluster_mesh.height = cluster_mesh.radius * randf_range(1.25, 1.75)
 		cluster.mesh = cluster_mesh
@@ -247,6 +267,7 @@ func _spawn_player() -> void:
 	add_child(player)
 	player.global_position = Vector3(0, 1, 7)
 	player.inventory_changed.connect(_on_inventory_changed)
+	player.health_changed.connect(_on_player_health_changed)
 	player.deposit_requested.connect(_on_deposit_requested)
 	player.trash_collected.connect(_on_trash_collected)
 	player.shop_requested.connect(_open_shop)
@@ -268,13 +289,14 @@ func _spawn_trash() -> void:
 		var location := Vector3.ZERO
 		for attempt in range(60):
 			if i >= base_target_count:
-				var mound_index := int((i - base_target_count) / 10)
-				var mound_angle := TAU * float(mound_index) / 5.0
-				var mound_center := Vector3(cos(mound_angle) * 34.0, 0.0, sin(mound_angle) * 34.0)
-				location = mound_center + Vector3(rng.randf_range(-1.15, 1.15), 0.0, rng.randf_range(-0.65, 0.65))
+				var arm_index := int((i - base_target_count) / 13) % 4
+				var arm_center := [Vector3(0, 0, -31), Vector3(31, 0, 0), Vector3(0, 0, 31), Vector3(-31, 0, 0)][arm_index]
+				location = arm_center + Vector3(rng.randf_range(-5.0, 5.0), 0.0, rng.randf_range(-5.0, 5.0))
 			else:
-				location = Vector3(rng.randf_range(-49.0, 49.0), 0.0, rng.randf_range(-49.0, 49.0))
-			if location.length() > 8.0 and (i >= base_target_count or _is_clear_location(location, 2.0)):
+				var angle := rng.randf_range(0.0, TAU)
+				var radius := sqrt(rng.randf()) * 15.0 + 3.5
+				location = Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+			if location.length() > 3.0 and (i >= base_target_count or _is_clear_location(location, 1.15)):
 				break
 		reserved_positions.append(location)
 		trash.position = location
@@ -360,104 +382,93 @@ func _spawn_trash() -> void:
 	total_trash = target_count
 
 func _populate_ground_detail(rng: RandomNumberGenerator, parent: Node3D) -> void:
+	# Decoración ligera con recursos compartidos y sin colisiones innecesarias.
 	var grass_materials: Array[StandardMaterial3D] = []
 	for color in [Color(0.24, 0.39, 0.18), Color(0.34, 0.43, 0.20), Color(0.43, 0.42, 0.22)]:
 		var material := StandardMaterial3D.new()
 		material.albedo_color = color
 		material.roughness = 1.0
 		grass_materials.append(material)
+	var blade_mesh := PrismMesh.new()
+	blade_mesh.size = Vector3(0.065, 0.36, 0.045)
+	var patch_centers: Array[Vector3] = []
+	for i in range(12):
+		patch_centers.append(_random_map_position(rng, 7.0, 36.0, 5.4))
+	for i in range(72):
+		var tuft := Node3D.new()
+		var center := patch_centers[i % patch_centers.size()]
+		tuft.position = center + Vector3(rng.randf_range(-2.0, 2.0), 0.0, rng.randf_range(-2.0, 2.0))
+		tuft.add_to_group("quality_detail")
+		for blade in range(3):
+			var blade_node := MeshInstance3D.new()
+			blade_node.mesh = blade_mesh
+			blade_node.position = Vector3(rng.randf_range(-0.12, 0.12), 0.18, rng.randf_range(-0.12, 0.12))
+			blade_node.rotation = Vector3(0.0, rng.randf_range(0.0, TAU), rng.randf_range(-0.38, 0.38))
+			blade_node.material_override = grass_materials[rng.randi_range(0, grass_materials.size() - 1)]
+			tuft.add_child(blade_node)
+		parent.add_child(tuft)
+	var leaf_mesh := SphereMesh.new()
+	leaf_mesh.radial_segments = 10
+	leaf_mesh.rings = 6
+	leaf_mesh.radius = 0.17
+	leaf_mesh.height = 0.29
+	var leaf_materials: Array[StandardMaterial3D] = []
+	for color in [Color(0.15, 0.34, 0.13), Color(0.25, 0.43, 0.17), Color(0.36, 0.48, 0.21)]:
+		var leaf_material := StandardMaterial3D.new()
+		leaf_material.albedo_color = color
+		leaf_material.roughness = 1.0
+		leaf_materials.append(leaf_material)
+	for i in range(34):
+		var plant := Node3D.new()
+		plant.position = _random_map_position(rng, 8.0, 37.0, 5.2)
+		plant.add_to_group("quality_detail")
+		for j in range(3):
+			var leaf := MeshInstance3D.new()
+			leaf.mesh = leaf_mesh
+			leaf.position = Vector3(rng.randf_range(-0.18, 0.18), rng.randf_range(0.12, 0.34), rng.randf_range(-0.18, 0.18))
+			leaf.scale = Vector3(0.7, 1.0, 1.35)
+			leaf.material_override = leaf_materials[rng.randi_range(0, leaf_materials.size() - 1)]
+			plant.add_child(leaf)
+		parent.add_child(plant)
 	var rock_material := StandardMaterial3D.new()
 	rock_material.albedo_color = Color(0.34, 0.36, 0.32)
 	rock_material.roughness = 1.0
-	# Distribuir el pasto en parches reconocibles, no como puntos aislados uniformes.
-	var grass_patch_centers: Array[Vector3] = []
-	for patch_index in range(27):
-		grass_patch_centers.append(Vector3(rng.randf_range(-52, 52), 0.0, rng.randf_range(-52, 52)))
-	for i in range(324):
-		var tuft := Node3D.new()
-		var patch_center := grass_patch_centers[i % grass_patch_centers.size()]
-		tuft.position = patch_center + Vector3(rng.randf_range(-3.2, 3.2), 0.0, rng.randf_range(-3.2, 3.2))
-		var blade_count := rng.randi_range(4, 7)
-		for blade in range(blade_count):
-			var mesh_node := MeshInstance3D.new()
-			var blade_height := rng.randf_range(0.22, 0.48)
-			var blade_mesh := PrismMesh.new()
-			blade_mesh.size = Vector3(0.065, blade_height, 0.045)
-			mesh_node.mesh = blade_mesh
-			mesh_node.position = Vector3(rng.randf_range(-0.15, 0.15), blade_height * 0.5, rng.randf_range(-0.15, 0.15))
-			mesh_node.rotation = Vector3(rng.randf_range(-0.12, 0.12), rng.randf_range(0.0, TAU), rng.randf_range(-0.42, 0.42))
-			mesh_node.material_override = grass_materials[rng.randi_range(0, grass_materials.size() - 1)]
-			tuft.add_child(mesh_node)
-		parent.add_child(tuft)
-	for plant_index in range(135):
-		var plant := Node3D.new()
-		plant.position = Vector3(rng.randf_range(-56, 56), 0.0, rng.randf_range(-56, 56))
-		var leaf_material := StandardMaterial3D.new()
-		leaf_material.albedo_color = [Color(0.15, 0.34, 0.13), Color(0.25, 0.43, 0.17), Color(0.36, 0.48, 0.21)][rng.randi_range(0, 2)]
-		for leaf_index in range(5):
-			var leaf := MeshInstance3D.new()
-			var leaf_mesh := SphereMesh.new()
-			leaf_mesh.radial_segments = 20
-			leaf_mesh.rings = 14
-			leaf_mesh.radius = rng.randf_range(0.12, 0.22)
-			leaf_mesh.height = leaf_mesh.radius * 1.7
-			leaf.mesh = leaf_mesh
-			leaf.position = Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(0.12, 0.38), rng.randf_range(-0.2, 0.2))
-			leaf.scale = Vector3(0.7, 1.0, 1.35)
-			leaf.material_override = leaf_material
-			plant.add_child(leaf)
-		parent.add_child(plant)
-		if rng.randf() < 0.22:
-			var berry_material := _detail_material(Color(0.72, 0.12, 0.16))
-			for berry_index in range(rng.randi_range(3, 6)):
-				var berry := MeshInstance3D.new()
-				var berry_mesh := SphereMesh.new()
-				berry_mesh.radial_segments = 16
-				berry_mesh.rings = 10
-				berry_mesh.radius = 0.055
-				berry.mesh = berry_mesh
-				berry.position = plant.position + Vector3(rng.randf_range(-0.22, 0.22), rng.randf_range(0.18, 0.42), rng.randf_range(-0.22, 0.22))
-				berry.material_override = berry_material
-				parent.add_child(berry)
-	for big_rock_index in range(16):
-		var boulder := MeshInstance3D.new()
-		var boulder_mesh := SphereMesh.new()
-		boulder_mesh.radial_segments = 32
-		boulder_mesh.rings = 22
-		boulder_mesh.radius = rng.randf_range(1.1, 2.4)
-		boulder_mesh.height = boulder_mesh.radius * rng.randf_range(0.65, 1.15)
-		boulder.mesh = boulder_mesh
-		var boulder_pos := Vector3(rng.randf_range(-55, 55), 0.0, rng.randf_range(-55, 55))
-		if not _is_clear_location(boulder_pos, boulder_mesh.radius * 2.2):
-			continue
-		reserved_positions.append(boulder_pos)
-		boulder.position = Vector3(boulder_pos.x, boulder_mesh.radius * 0.32, boulder_pos.z)
-		boulder.scale = Vector3(rng.randf_range(1.0, 1.5), rng.randf_range(0.65, 0.95), rng.randf_range(1.0, 1.4))
-		boulder.material_override = rock_material
-		parent.add_child(boulder)
-		if boulder_mesh.radius >= 1.1:
-			_add_box_collision(parent, boulder.position + Vector3(0.0, boulder_mesh.height * 0.18, 0.0), Vector3(boulder_mesh.radius * 1.55, boulder_mesh.height * 0.52, boulder_mesh.radius * 1.55))
-	for i in range(64):
-		var rock := MeshInstance3D.new()
+	for i in range(8):
 		var rock_mesh := SphereMesh.new()
-		rock_mesh.radius = rng.randf_range(0.22, 0.72)
-		rock_mesh.height = rock_mesh.radius * rng.randf_range(0.75, 1.35)
-		rock.mesh = rock_mesh
-		var rock_ground_position := Vector3(rng.randf_range(-56, 56), 0.0, rng.randf_range(-56, 56))
-		if not _is_clear_location(rock_ground_position, rock_mesh.radius * 2.3):
+		rock_mesh.radial_segments = 12
+		rock_mesh.rings = 8
+		rock_mesh.radius = rng.randf_range(0.8, 1.7)
+		rock_mesh.height = rock_mesh.radius * rng.randf_range(0.65, 1.1)
+		var boulder := MeshInstance3D.new()
+		boulder.mesh = rock_mesh
+		var pos := _random_map_position(rng, 20.0, 37.0, 5.0)
+		if not _is_clear_location(pos, rock_mesh.radius * 1.7):
 			continue
-		reserved_positions.append(rock_ground_position)
-		rock.position = Vector3(rock_ground_position.x, rock_mesh.radius * 0.34, rock_ground_position.z)
-		rock.scale = Vector3(rng.randf_range(0.8, 1.6), rng.randf_range(0.55, 0.9), rng.randf_range(0.8, 1.5))
-		rock.rotation = Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(0, TAU), rng.randf_range(-0.2, 0.2))
+		boulder.position = Vector3(pos.x, rock_mesh.radius * 0.32, pos.z)
+		boulder.scale = Vector3(1.2, 0.8, 1.1)
+		boulder.material_override = rock_material
+		boulder.add_to_group("quality_detail")
+		parent.add_child(boulder)
+	for i in range(22):
+		var small_mesh := SphereMesh.new()
+		small_mesh.radial_segments = 8
+		small_mesh.rings = 5
+		small_mesh.radius = rng.randf_range(0.22, 0.55)
+		small_mesh.height = small_mesh.radius
+		var rock := MeshInstance3D.new()
+		rock.mesh = small_mesh
+		var pos := _random_map_position(rng, 6.0, 38.0, 5.5)
+		rock.position = Vector3(pos.x, small_mesh.radius * 0.34, pos.z)
 		rock.material_override = rock_material
+		rock.add_to_group("quality_detail")
 		parent.add_child(rock)
 
 func _create_zone_markers() -> void:
 	var zones := [
-		{"name": "CLARO DEL BOSQUE", "position": Vector3(0, 0, -29), "color": Color(0.45, 0.75, 0.48)},
-		{"name": "ARROYO · 35% DE RESTAURACION", "position": Vector3(0, 0, -48), "color": Color(0.35, 0.68, 0.82)},
-		{"name": "BORDE SALVAJE · 70% DE RESTAURACION", "position": Vector3(43, 0, 0), "color": Color(0.78, 0.68, 0.36)}
+		{"name": "BOSQUE PROFUNDO", "position": Vector3(0, 0, -34), "color": Color(0.45, 0.75, 0.48)},
+		{"name": "ARROYO", "position": Vector3(34, 0, 0), "color": Color(0.35, 0.68, 0.82)},
+		{"name": "VERTEDERO", "position": Vector3(0, 0, 34), "color": Color(0.78, 0.68, 0.36)},
+		{"name": "ZONA ROCOSA", "position": Vector3(-34, 0, 0), "color": Color(0.72, 0.72, 0.66)}
 	]
 	for zone in zones:
 		var sign_root := Node3D.new()
@@ -678,6 +689,7 @@ func _is_clear_location(location: Vector3, clearance: float) -> bool:
 func _create_hud() -> void:
 	hud = HUD_SCRIPT.new() as TRushHUD
 	add_child(hud)
+	hud.update_health(player.current_health, player.max_health)
 	hud.upgrade_requested.connect(_buy_upgrade)
 	hud.options_changed.connect(_apply_options)
 	hud.prestige_requested.connect(_perform_prestige)
@@ -694,10 +706,17 @@ func _on_pause_requested() -> void:
 	if hud:
 		hud.toggle_pause()
 
-func _apply_options(brightness: float, music_volume: float, effects_volume: float, fov: float) -> void:
+func _apply_options(brightness: float, music_volume: float, effects_volume: float, fov: float, quality_level: int = 1) -> void:
+	graphics_quality = clampi(quality_level, 0, 2)
 	if world_environment and world_environment.environment:
 		world_environment.environment.ambient_light_energy = 0.65 * brightness
 		world_environment.environment.tonemap_exposure = brightness
+	if sun:
+		sun.shadow_enabled = graphics_quality >= 1
+		sun.directional_shadow_max_distance = 42.0 if graphics_quality == 1 else 70.0
+	for detail in get_tree().get_nodes_in_group("quality_detail"):
+		if detail is Node3D:
+			detail.visible = graphics_quality >= 1
 	if player and player.game_camera:
 		player.game_camera.fov = fov
 	var music_bus := AudioServer.get_bus_index("Music")
@@ -706,10 +725,15 @@ func _apply_options(brightness: float, music_volume: float, effects_volume: floa
 	var sfx_bus := AudioServer.get_bus_index("SFX")
 	if sfx_bus >= 0:
 		AudioServer.set_bus_volume_linear(sfx_bus, effects_volume)
+	_save_game()
 
 func _on_inventory_changed(current: int, capacity: int) -> void:
 	if hud:
 		hud.update_bag(current, capacity)
+
+func _on_player_health_changed(current: float, maximum: float) -> void:
+	if hud:
+		hud.update_health(current, maximum)
 
 func _on_trash_collected(_value: int) -> void:
 	collected_trash += 1
@@ -749,7 +773,7 @@ func _check_restoration() -> void:
 	var milestones := [
 		{"percent": 25, "name": "Hornero", "id": "bird", "description": "Ave nativa que construye nidos de barro y ayuda a mantener el equilibrio del ecosistema.", "message": "¡Regresó el hornero al bosque!"},
 		{"percent": 60, "name": "Zorro gris", "id": "fox", "description": "Mamífero omnívoro que dispersa semillas y contribuye al control de pequeños animales.", "message": "¡Se observó un zorro gris en el bioma!"},
-		{"percent": 100, "name": "Venado de campo", "id": "deer", "description": "Herbívoro nativo de pastizales y ambientes abiertos; su presencia indica un hábitat más saludable.", "message": "¡El venado de campo volvió al ecosistema! Bioma restaurado."}
+		{"percent": 80, "name": "Venado de campo", "id": "deer", "description": "Herbívoro nativo de pastizales y ambientes abiertos; su presencia indica un hábitat más saludable.", "message": "¡El venado de campo volvió al ecosistema! Bioma restaurado."}
 	]
 	for milestone in milestones:
 		var species_name: String = milestone["name"]
@@ -765,7 +789,11 @@ func _check_restoration() -> void:
 func _spawn_species_marker(species: Dictionary) -> void:
 	var actor := WILDLIFE_SCRIPT.new() as TRushWildlife
 	actor.species_id = str(species["id"])
-	actor.position = Vector3(randf_range(-7.0, 7.0), 0.0, randf_range(-7.0, 7.0))
+	if str(species["id"]) == "deer":
+		actor.position = Vector3(randf_range(-4.0, 4.0), 0.0, -29.0 + randf_range(-3.0, 3.0))
+		actor.scale = Vector3.ONE * 0.76
+	else:
+		actor.position = Vector3(randf_range(-7.0, 7.0), 0.0, randf_range(-7.0, 7.0))
 	actor.name = "Wildlife_" + str(species["id"])
 	add_child(actor)
 	if not is_day:
@@ -1026,6 +1054,7 @@ func _save_game() -> void:
 	config.set_value("skills", "points", skill_points)
 	config.set_value("skills", "xp", player_xp)
 	config.set_value("skills", "level", player_level)
+	config.set_value("settings", "graphics_quality", graphics_quality)
 	config.save(SAVE_PATH)
 
 func _load_game() -> void:
@@ -1055,3 +1084,4 @@ func _load_game() -> void:
 	skill_points = int(config.get_value("skills", "points", 0))
 	player_xp = int(config.get_value("skills", "xp", 0))
 	player_level = int(config.get_value("skills", "level", 1))
+	graphics_quality = clampi(int(config.get_value("settings", "graphics_quality", 1)), 0, 2)

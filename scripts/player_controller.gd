@@ -8,6 +8,7 @@ signal shop_requested
 signal skill_requested
 signal pause_requested
 signal sleep_requested
+signal health_changed(current: float, maximum: float)
 
 @export_group("Movement")
 @export var walk_speed: float = 5.0
@@ -31,6 +32,9 @@ var vacuum_pull_time: float = 0.24
 var vacuum_nozzle: MeshInstance3D
 var vacuum_active: bool = false
 var suppress_deposit_input: bool = false
+@export_group("Health")
+@export var max_health: float = 100.0
+var current_health: float = 100.0
 
 func _ready() -> void:
 	camera_pivot = get_node_or_null("CameraPivot")
@@ -41,7 +45,9 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_create_input_actions()
 	_create_vacuum_model()
+	current_health = clampf(current_health, 0.0, max_health)
 	inventory_changed.emit(bag_count, bag_capacity)
+	health_changed.emit(current_health, max_health)
 
 func _create_input_actions() -> void:
 	var actions := {
@@ -279,3 +285,15 @@ func collect_bag_contents() -> int:
 func increase_capacity(amount: int) -> void:
 	bag_capacity += amount
 	inventory_changed.emit(bag_count, bag_capacity)
+
+func apply_damage(amount: float) -> void:
+	if amount <= 0.0 or current_health <= 0.0:
+		return
+	current_health = maxf(0.0, current_health - amount)
+	health_changed.emit(current_health, max_health)
+
+func heal(amount: float) -> void:
+	if amount <= 0.0 or current_health <= 0.0:
+		return
+	current_health = minf(max_health, current_health + amount)
+	health_changed.emit(current_health, max_health)

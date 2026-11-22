@@ -1,7 +1,7 @@
 extends CanvasLayer
 class_name TRushHUD
 
-signal options_changed(brightness: float, music_volume: float, effects_volume: float, fov: float)
+signal options_changed(brightness: float, music_volume: float, effects_volume: float, fov: float, quality_level: int)
 signal pause_state_changed(is_paused: bool)
 signal upgrade_requested(upgrade_id: String)
 signal prestige_requested
@@ -11,6 +11,8 @@ signal bestiary_toggled
 var money_label: Label
 var bag_label: Label
 var progress_label: Label
+var health_label: Label
+var health_bar: ProgressBar
 var phase_label: Label
 var message_label: Label
 var mission_label: Label
@@ -43,7 +45,7 @@ func _ready() -> void:
 	add_child(root)
 	_build_pause_menu(root)
 
-	var status_panel := _make_panel(Vector2(22, 20), Vector2(370, 190))
+	var status_panel := _make_panel(Vector2(22, 20), Vector2(370, 226))
 	root.add_child(status_panel)
 	var status_box := VBoxContainer.new()
 	status_box.add_theme_constant_override("separation", 7)
@@ -55,6 +57,15 @@ func _ready() -> void:
 	mission_label = _make_label("MISIÓN · Recolecta y recicla residuos", 14)
 	for label in [money_label, bag_label, progress_label, phase_label, mission_label]:
 		status_box.add_child(label)
+	health_label = _make_label("VIDA  100 / 100", 16, Color(1.0, 0.82, 0.72))
+	status_box.add_child(health_label)
+	health_bar = ProgressBar.new()
+	health_bar.min_value = 0
+	health_bar.max_value = 100
+	health_bar.value = 100
+	health_bar.show_percentage = false
+	health_bar.custom_minimum_size = Vector2(320, 15)
+	status_box.add_child(health_bar)
 	var bag_widget := _make_panel(Vector2(-190, -92), Vector2(170, 68))
 	bag_widget.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	root.add_child(bag_widget)
@@ -339,6 +350,13 @@ func _build_pause_menu(root: Control) -> void:
 	effects.value = 0.9
 	box.add_child(_make_label("Volumen de efectos", 15))
 	box.add_child(effects)
+	box.add_child(_make_label("Calidad gráfica", 15))
+	var quality := OptionButton.new()
+	quality.add_item("Baja · máximo rendimiento", 0)
+	quality.add_item("Media · equilibrada", 1)
+	quality.add_item("Alta · más sombras y detalle", 2)
+	quality.select(1)
+	box.add_child(quality)
 	var fov := HSlider.new()
 	fov.min_value = 65.0
 	fov.max_value = 105.0
@@ -346,11 +364,13 @@ func _build_pause_menu(root: Control) -> void:
 	fov.value = 80.0
 	box.add_child(_make_label("Campo de visión (FOV)", 15))
 	box.add_child(fov)
-	var apply := func(_value: float = 0.0): options_changed.emit(brightness.value, music.value, effects.value, fov.value)
+	var apply := func(_value: float = 0.0): options_changed.emit(brightness.value, music.value, effects.value, fov.value, quality.get_selected_id())
+	var apply_quality := func(_index: int): options_changed.emit(brightness.value, music.value, effects.value, fov.value, quality.get_selected_id())
 	brightness.value_changed.connect(apply)
 	music.value_changed.connect(apply)
 	effects.value_changed.connect(apply)
 	fov.value_changed.connect(apply)
+	quality.item_selected.connect(apply_quality)
 	var resume := _make_button("VOLVER AL JUEGO · ESC")
 	resume.pressed.connect(toggle_pause)
 	box.add_child(resume)
@@ -383,6 +403,14 @@ func update_bag(current: int, capacity: int) -> void:
 
 func update_money(amount: int) -> void:
 	money_label.text = "✦  $%d" % amount
+
+func update_health(current: float, maximum: float) -> void:
+	if health_label:
+		health_label.text = "VIDA  %.0f / %.0f" % [current, maximum]
+	if health_bar:
+		health_bar.max_value = maxf(1.0, maximum)
+		health_bar.value = clampf(current, 0.0, maximum)
+		health_bar.modulate = Color(0.35, 0.86, 0.48) if current / maxf(1.0, maximum) > 0.5 else Color(1.0, 0.35, 0.25)
 
 func update_progress(percent: int) -> void:
 	progress_label.text = "Bosque %d%% restaurado" % percent
