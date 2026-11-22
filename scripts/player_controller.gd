@@ -213,27 +213,33 @@ func unlock_vacuum() -> void:
 		root.visible = true
 
 func _vacuum_collect() -> void:
-	if vacuum_active or bag_count >= bag_capacity:
+	if vacuum_active or bag_count >= bag_capacity or vacuum_nozzle == null:
 		return
 	vacuum_active = true
+	var collected_this_pulse := 0
 	for item in get_tree().get_nodes_in_group("garbage"):
-		if not item is Node3D or bag_count >= bag_capacity:
+		if collected_this_pulse >= 6 or bag_count >= bag_capacity:
+			break
+		if not item is Node3D or not is_instance_valid(item):
 			continue
-		if global_position.distance_to(item.global_position) > vacuum_radius:
+		var target_item := item as Node3D
+		if target_item.has_meta("vacuum_claimed"):
 			continue
-		var value := int(item.get("trash_value"))
+		if global_position.distance_to(target_item.global_position) > vacuum_radius:
+			continue
+		var value := int(target_item.get("trash_value"))
 		if value <= 0 or bag_count + value > bag_capacity:
 			continue
+		target_item.set_meta("vacuum_claimed", true)
 		bag_count += value
-		bag_reward_total += maxi(int(item.get("reward_value")), 1)
+		bag_reward_total += maxi(int(target_item.get("reward_value")), 1)
+		collected_this_pulse += 1
 		trash_collected.emit(value)
-		inventory_changed.emit(bag_count, bag_capacity)
-		var target_item := item as Node3D
 		var tween := create_tween()
 		tween.tween_property(target_item, "global_position", vacuum_nozzle.global_position, vacuum_pull_time).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tween.tween_callback(target_item.queue_free)
-		await tween.finished
-		await get_tree().create_timer(0.035).timeout
+	if collected_this_pulse > 0:
+		inventory_changed.emit(bag_count, bag_capacity)
 	vacuum_active = false
 
 func _try_collect() -> void:
