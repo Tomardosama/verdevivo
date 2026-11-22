@@ -299,7 +299,8 @@ func _spawn_trash() -> void:
 		for attempt in range(60):
 			if i >= base_target_count:
 				var arm_index := int((i - base_target_count) / 13) % 4
-				var arm_center := [Vector3(22, 0, -22), Vector3(22, 0, 22), Vector3(-22, 0, 22), Vector3(-22, 0, -22)][arm_index]
+				var arm_centers: Array[Vector3] = [Vector3(22, 0, -22), Vector3(22, 0, 22), Vector3(-22, 0, 22), Vector3(-22, 0, -22)]
+				var arm_center: Vector3 = arm_centers[arm_index]
 				location = arm_center + Vector3(rng.randf_range(-5.0, 5.0), 0.0, rng.randf_range(-5.0, 5.0))
 			else:
 				var angle := rng.randf_range(0.0, TAU)
