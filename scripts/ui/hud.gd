@@ -21,6 +21,7 @@ var upgrade_buttons: Array[Button] = []
 var upgrade_ids: Array[String] = []
 var upgrade_title_labels: Array[Label] = []
 var upgrade_detail_labels: Array[Label] = []
+var shop_balance_label: Label
 var upgrade_descriptions := {"speed": "Movimiento más rápido", "capacity": "+2 espacios de bolsa", "value": "Más ingresos por residuo", "range": "Mayor alcance manual", "day": "Más duración del día", "vacuum": "Amplía el radio y acelera el viaje del residuo a la boquilla", "discount": "Reduce otros costos"}
 var upgrade_names := {"speed": "Velocidad", "capacity": "Bolsa", "value": "Valor reciclado", "range": "Alcance manual", "day": "Duración del día", "vacuum": "Aspiradora", "discount": "Descuento"}
 var bestiary_panel: PanelContainer
@@ -101,8 +102,14 @@ func _ready() -> void:
 	var upgrade_box := VBoxContainer.new()
 	upgrade_box.add_theme_constant_override("separation", 10)
 	upgrades_panel.add_child(upgrade_box)
-	var shop_heading := _make_label("MERCADO DEL GUARDABOSQUES", 25, Color(0.91, 0.96, 0.84))
-	upgrade_box.add_child(shop_heading)
+	var shop_header := HBoxContainer.new()
+	shop_header.add_theme_constant_override("separation", 12)
+	upgrade_box.add_child(shop_header)
+	var shop_heading := _make_label("MERCADO DEL GUARDABOSQUES", 24, Color(0.91, 0.96, 0.84))
+	shop_heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_header.add_child(shop_heading)
+	shop_balance_label = _make_label("SALDO  $0", 19, Color(0.91, 0.82, 0.48))
+	shop_header.add_child(shop_balance_label)
 	upgrade_box.add_child(_make_label("Invierte lo que recuperas. Cada mejora fortalece tu próxima expedición.", 14, Color(0.70, 0.81, 0.72)))
 	var shop_section := _make_label("EQUIPAMIENTO Y MEJORAS PERMANENTES", 12, Color(0.54, 0.77, 0.58))
 	shop_section.add_theme_font_size_override("font_size", 12)
@@ -453,6 +460,8 @@ func update_bag(current: int, capacity: int) -> void:
 
 func update_money(amount: int) -> void:
 	money_label.text = "✦  $%d" % amount
+	if shop_balance_label:
+		shop_balance_label.text = "SALDO  $%d" % amount
 
 func update_health(current: float, maximum: float) -> void:
 	if health_label:
@@ -559,6 +568,8 @@ func show_shop(is_open: bool) -> void:
 func set_upgrade_access(enabled: bool) -> void:
 	for button in upgrade_buttons:
 		button.disabled = not enabled
+	if shop_panel and not enabled and shop_open:
+		show_message("La tienda vuelve a abrir durante la noche.")
 
 func set_bestiary(entries: Array[Dictionary]) -> void:
 	for index in range(1, bestiary_list.get_child_count()):
