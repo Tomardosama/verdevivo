@@ -680,7 +680,7 @@ func _start_new_day() -> void:
 func _is_clear_location(location: Vector3, clearance: float) -> bool:
 	if location.length() < 8.0:
 		return false
-	if Vector2(location.x + 18.0, location.z + 20.0).length() < 8.0:
+	if Vector2(location.x - 28.0, location.z).length() < 7.0:
 		return false
 	for reserved in reserved_positions:
 		if Vector2(location.x, location.z).distance_to(Vector2(reserved.x, reserved.z)) < clearance:
@@ -935,7 +935,7 @@ func _spend_skill_point(skill_id: String = "agility") -> void:
 func _create_pond() -> void:
 	var pond := Node3D.new()
 	pond.name = "LilyPond"
-	pond.position = Vector3(-18.0, 0.0, -20.0)
+	pond.position = Vector3(28.0, 0.0, 0.0)
 	add_child(pond)
 	var water := MeshInstance3D.new()
 	var water_mesh := CylinderMesh.new()
