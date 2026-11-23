@@ -1,0 +1,13 @@
+{
+  "vacuum_max_level": 10,
+  "vacuum_upgrade_costs": [2400, 3600, 5400, 7800, 11000, 15000, 20000, 26500, 34500, 44000],
+  "daily_quota_base": 200,
+  "daily_quota_per_level": 25,
+  "daily_quota_max_level": 6,
+  "daily_quota_upgrade_costs": [650, 1400, 2600, 4400, 6900, 10200],
+  "daily_completion_bonus_rate": 0.10,
+  "prestige_minimum_restoration": 98,
+  "prestige_points_per_full_restoration": 1,
+  "prestige_points_per_defeated_boss": 1,
+  "prestige_points_max_per_reset": 12
+}

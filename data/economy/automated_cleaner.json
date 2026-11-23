@@ -1,0 +1,18 @@
+{
+  "purchase_price": 5200,
+  "income_rates_per_minute": [1, 2, 3, 4, 6, 8],
+  "income_upgrade_costs": [900, 1800, 3600, 7200, 12500],
+  "storage_capacities": [180, 360, 600, 900, 1300, 1800],
+  "storage_upgrade_costs": [700, 1400, 3000, 6200, 11500],
+  "upgrade_discount_multiplier": 0.92,
+  "placement": {
+    "pond_center": [70.0, 68.0],
+    "pond_radius": 9.0,
+    "pond_machine_radius": 6.4,
+    "pond_player_reach": 4.6,
+    "frog_stream_segment_start": [81.0, 80.0],
+    "frog_stream_segment_end": [101.0, 102.0],
+    "frog_stream_half_width": 1.8,
+    "frog_stream_player_reach": 4.4
+  }
+}

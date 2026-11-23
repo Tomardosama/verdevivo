@@ -1,0 +1,8 @@
+Selected glTF environmental assets copied from the user's Desktop\nature package.
+
+Original package: Ultimate Platformer Pack by @Quaternius.
+License supplied with the original package: CC0 1.0 Universal.
+The complete license is available at https://creativecommons.org/publicdomain/zero/1.0/.
+
+Only selected tree, bush and grass models with their referenced textures are included.
+The source package on the Desktop was left unchanged.
